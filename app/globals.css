@@ -5,7 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ============================= */
-/* THEME COLORS */
+/* THEME COLORS - UPDATED TO ORANGE */
 /* ============================= */
 
 @theme {
@@ -15,10 +15,10 @@
   --color-primary-dark: #d1d1d1;
   --color-primary-light: #ffffff;
 
-  /* Gold accent */
-  --color-gold: #D4AF37;
-  --color-gold-light: #f1d57a;
-  --color-gold-dark: #a8892b;
+  /* Orange accent (Substituído o Azul por Laranja) */
+  --color-orange-barber: #f97316;
+  --color-orange-barber-light: #fb923c;
+  --color-orange-barber-dark: #ea580c;
 
 }
 
@@ -75,8 +75,9 @@
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
 
-  --primary: oklch(0.87 0 0);
-  --primary-foreground: oklch(0.205 0 0);
+  /* Shadcn Primary ajustado para Laranja Vibrante no modo escuro */
+  --primary: oklch(0.705 0.213 47.592); 
+  --primary-foreground: oklch(0.985 0 0);
 
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
@@ -92,7 +93,7 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
 
-  --ring: oklch(0.556 0 0);
+  --ring: oklch(0.705 0.213 47.592);
 
 }
 
@@ -157,21 +158,21 @@
 }
 
 /* ============================= */
-/* GOLD UTILITIES */
+/* ORANGE UTILITIES */
 /* ============================= */
 
 @layer utilities {
 
-  .text-gold {
-    color: #D4AF37;
+  .text-orange-barber {
+    color: #f97316;
   }
 
-  .bg-gold {
-    background-color: #D4AF37;
+  .bg-orange-barber {
+    background-color: #f97316;
   }
 
-  .border-gold {
-    border-color: #D4AF37;
+  .border-orange-barber {
+    border-color: #f97316;
   }
 
 }
@@ -187,21 +188,21 @@
 }
 
 .react-calendar__tile--active {
-  background: white !important;
-  color: black !important;
+  background: #f97316 !important; /* Calendário agora destaca em Laranja */
+  color: white !important;
 }
 
-/*/ descer a tela */
+/* Descer a tela */
 html {
   scroll-behavior: smooth;
 }
 
-/* Isso evita que o navegador tente dar zoom automático quando o cliente clica nos botões */
+/* Touch manipulation */
 html {
   touch-action: manipulation;
 }
 
-/* Deixa o scroll mais suave no iPhone */
+/* Scroll suave iOS */
 body {
   -webkit-overflow-scrolling: touch;
 }

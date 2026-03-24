@@ -39,7 +39,7 @@ interface Service {
   id: string;
   name: string;
   price: number;
-  duration_minutes: number; // Campo sincronizado com o banco
+  duration_minutes: number;
 }
 
 interface BlockedTime {
@@ -55,18 +55,27 @@ const HORARIOS_DISPONIVEIS = [
 
 export default function AdminPage() {
   const router = useRouter();
-  const [selectedDate, setSelectedDate] = useState(
-    new Date().toISOString().split("T")[0],
-  );
+
+  // CORREÇÃO 1: Inicialização da data garantindo o fuso horário local (Brasil)
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const agora = new Date();
+    const offset = agora.getTimezoneOffset() * 60000;
+    const dataLocal = new Date(agora.getTime() - offset);
+    return dataLocal.toISOString().split("T")[0];
+  });
+
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [services, setServices] = useState<Record<string, Service>>({});
   const [blockedTimes, setBlockedTimes] = useState<BlockedTime[]>([]);
   const [loading, setLoading] = useState(true);
   
+  const [barberName, setBarberName] = useState("");
+  const [barberPhone, setBarberPhone] = useState("");
+  
   const [isAddingService, setIsAddingService] = useState(false);
   const [newServiceName, setNewServiceName] = useState("");
   const [newServicePrice, setNewServicePrice] = useState("");
-  const [newServiceDuration, setNewServiceDuration] = useState("30"); // Estado para tempo
+  const [newServiceDuration, setNewServiceDuration] = useState("30");
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
   const [faturamentoMensal, setFaturamentoMensal] = useState(0);
 
@@ -260,6 +269,17 @@ export default function AdminPage() {
         setLoading(true);
         const bId = getCookie("barberId");
 
+        const { data: barberData } = await supabase
+          .from("barbers")
+          .select("name, phone")
+          .eq("id", bId)
+          .single();
+        
+        if (barberData) {
+          setBarberName(barberData.name);
+          setBarberPhone(barberData.phone);
+        }
+
         const { data: svcs } = await supabase.from("services").select("*");
         if (svcs) {
           const servicesMap = svcs.reduce((acc, s) => ({ ...acc, [s.id]: s }), {});
@@ -296,6 +316,7 @@ export default function AdminPage() {
         const bId = getCookie("barberId");
         if (!bId || Object.keys(services).length === 0) return;
 
+        // CORREÇÃO 2: Cálculo do faturamento mensal garantindo datas locais absolutas
         const agora = new Date();
         const ano = agora.getFullYear();
         const mes = agora.getMonth() + 1;
@@ -325,7 +346,7 @@ export default function AdminPage() {
     fetchFaturamentoMensal();
   }, [services, appointments]);
 
-  if (loading) return <div className="min-h-screen bg-black flex items-center justify-center"><Loader2 className="text-orange-500 animate-spin" size={40} /></div>;
+  if (loading) return <div className="min-h-screen bg-black flex items-center justify-center"><Loader2 className="text-orange-600 animate-spin" size={40} /></div>;
 
   return (
     <main className="min-h-screen bg-[#050505] text-white p-4 md:p-10 pb-32">
@@ -333,12 +354,13 @@ export default function AdminPage() {
 
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4 border-b border-white/5 pb-8">
         <div>
-          <h1 className="text-3xl font-black italic tracking-tighter uppercase">Admin <span className="text-orange-500">Dashboard</span></h1>
-          <p className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.3em]">Gestão de Horários e Tempo</p>
+          <h1 className="text-3xl font-black italic tracking-tighter uppercase">Admin <span className="text-orange-600">Dashboard</span></h1>
+          <p className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.3em]">Gestão de Horários • {barberName || "Barbeiro"}</p>
         </div>
         <div className="flex items-center gap-3 w-full md:w-auto">
-          <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="bg-zinc-900/50 p-3 rounded-xl border border-white/5 text-sm font-bold flex-1 outline-none" />
-          <button onClick={handleLogout} className="p-3 bg-zinc-900 border border-white/5 rounded-xl text-zinc-500 hover:text-red-500"><LogOut size={20} /></button>
+          {/* O input type="date" já conversa perfeitamente com a string YYYY-MM-DD local */}
+          <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="bg-zinc-900/50 p-3 rounded-xl border border-white/5 text-sm font-bold flex-1 outline-none focus:border-orange-600/50 transition-all" />
+          <button onClick={handleLogout} className="p-3 bg-zinc-900 border border-white/5 rounded-xl text-zinc-500 hover:text-orange-600 transition-colors"><LogOut size={20} /></button>
         </div>
       </header>
 
@@ -359,9 +381,9 @@ export default function AdminPage() {
           <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-2">Projetado Hoje</p>
           <p className="text-3xl font-black italic text-zinc-400">R$ {faturamentoProjetado.toFixed(2)}</p>
         </div>
-        <div className="bg-zinc-900/40 border border-orange-500/20 p-6 rounded-[2rem] relative overflow-hidden shadow-lg shadow-orange-500/5">
-          <TrendingUp className="absolute -right-4 -bottom-4 text-orange-500/10 size-20" />
-          <p className="text-[9px] font-black uppercase tracking-widest text-orange-500 mb-2">Faturamento Mensal</p>
+        <div className="bg-zinc-900/40 border border-orange-600/20 p-6 rounded-[2rem] relative overflow-hidden shadow-lg shadow-orange-600/5">
+          <TrendingUp className="absolute -right-4 -bottom-4 text-orange-600/10 size-20" />
+          <p className="text-[9px] font-black uppercase tracking-widest text-orange-600 mb-2">Faturamento Mensal</p>
           <p className="text-3xl font-black italic text-white">R$ {faturamentoMensal.toFixed(2)}</p>
         </div>
       </div>
@@ -370,7 +392,7 @@ export default function AdminPage() {
       <section className="max-w-4xl mx-auto mb-16">
         <div className="flex justify-between items-center mb-8">
           <h2 className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2"><Scissors size={14} /> Fila de Atendimento</h2>
-          <button onClick={handleToggleFolga} className={`text-[9px] font-black uppercase tracking-widest px-4 py-2 rounded-full border transition-all ${isFolga ? "bg-orange-500 text-black border-orange-500" : "border-zinc-800 text-zinc-500 hover:border-orange-500"}`}>{isFolga ? "MODO FOLGA ATIVO" : "MARCAR FOLGA HOJE"}</button>
+          <button onClick={handleToggleFolga} className={`text-[9px] font-black uppercase tracking-widest px-4 py-2 rounded-full border transition-all ${isFolga ? "bg-orange-600 text-white border-orange-600 shadow-[0_0_15px_rgba(249,115,22,0.3)]" : "border-zinc-800 text-zinc-500 hover:border-orange-600 hover:text-orange-600"}`}>{isFolga ? "MODO FOLGA ATIVO" : "MARCAR FOLGA HOJE"}</button>
         </div>
         <div className="grid gap-3">
           {appointments.length === 0 ? (
@@ -380,22 +402,28 @@ export default function AdminPage() {
               const svc = services[item.service_id] || { name: "Serviço", price: 0 };
               const isConcluido = item.status === "concluido";
               return (
-                <div key={item.id} className={`bg-zinc-900/30 p-5 rounded-[2rem] border flex flex-col sm:flex-row justify-between items-center gap-4 transition-all ${isConcluido ? "border-green-500/30 bg-green-500/5 opacity-60" : "border-white/5"}`}>
+                <div key={item.id} className={`bg-zinc-900/30 p-5 rounded-[2rem] border flex flex-col sm:flex-row justify-between items-center gap-4 transition-all ${isConcluido ? "border-green-500/30 bg-green-500/5 opacity-60" : "border-white/5 hover:border-orange-600/20"}`}>
                   <div className="flex items-center gap-5 w-full sm:w-auto">
-                    <div className="text-2xl font-black italic text-orange-500 min-w-[75px]">{item.time.slice(0, 5)}</div>
+                    <div className="text-2xl font-black italic text-orange-600 min-w-[75px]">{item.time.slice(0, 5)}</div>
                     <div>
                       <div className="flex items-center gap-2">
                         <p className={`text-lg font-black uppercase italic leading-none ${isConcluido ? "line-through text-zinc-500" : ""}`}>{item.clients?.name}</p>
                         {!isConcluido && item.clients?.phone && (
-                          <a href={`https://api.whatsapp.com/send?phone=55${item.clients.phone.replace(/\D/g, "")}&text=${encodeURIComponent(`Olá, ${item.clients.name}! Confirmado hoje às ${item.time.slice(0, 5)}?`)}`} target="_blank" className="p-1.5 bg-green-500/10 text-green-500 rounded-lg hover:bg-green-500 hover:text-white transition-all"><MessageCircle size={14} /></a>
+                          <a 
+                            href={`https://api.whatsapp.com/send?phone=55${item.clients.phone.replace(/\D/g, "")}&text=${encodeURIComponent(`Olá, ${item.clients.name}! Aqui é o ${barberName} da BNB. Confirmado seu horário hoje às ${item.time.slice(0, 5)}?`)}`} 
+                            target="_blank" 
+                            className="p-1.5 bg-green-500/10 text-green-500 rounded-lg hover:bg-green-500 hover:text-white transition-all"
+                          >
+                            <MessageCircle size={14} />
+                          </a>
                         )}
                       </div>
                       <p className="text-[9px] font-bold text-zinc-500 uppercase mt-1 tracking-wider">{svc.name} • R$ {Number(svc.price).toFixed(2)}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                    <button onClick={() => handleStatusUpdate(item.id, item.status)} className={`flex-1 sm:flex-none px-6 py-3 rounded-xl font-black text-[10px] uppercase transition-all ${isConcluido ? "bg-green-500 text-black" : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"}`}>{isConcluido ? "CONCLUÍDO" : "CONCLUIR"}</button>
-                    <button onClick={() => handleDelete(item.id)} className="p-3 text-zinc-700 hover:text-red-500"><Trash2 size={18} /></button>
+                    <button onClick={() => handleStatusUpdate(item.id, item.status)} className={`flex-1 sm:flex-none px-6 py-3 rounded-xl font-black text-[10px] uppercase transition-all ${isConcluido ? "bg-green-500 text-black" : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white"}`}>{isConcluido ? "CONCLUÍDO" : "CONCLUIR"}</button>
+                    <button onClick={() => handleDelete(item.id)} className="p-3 text-zinc-700 hover:text-orange-600 transition-colors"><Trash2 size={18} /></button>
                   </div>
                 </div>
               );
@@ -404,21 +432,21 @@ export default function AdminPage() {
         </div>
       </section>
 
-      {/* GESTÃO DE SERVIÇOS (COM TEMPO) */}
+      {/* GESTÃO DE SERVIÇOS */}
       <section className="max-w-4xl mx-auto mb-16 bg-zinc-900/10 border border-white/5 p-8 rounded-[3rem]">
         <div className="flex justify-between items-center mb-8">
           <h2 className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2"><Plus size={14} /> Serviços & Duração</h2>
-          <button onClick={() => { setIsAddingService(!isAddingService); setEditingServiceId(null); setNewServiceName(""); setNewServicePrice(""); setNewServiceDuration("30"); }} className="p-2 bg-orange-500 text-black rounded-full hover:bg-orange-400 transition-colors">
+          <button onClick={() => { setIsAddingService(!isAddingService); setEditingServiceId(null); setNewServiceName(""); setNewServicePrice(""); setNewServiceDuration("30"); }} className="p-2 bg-orange-600 text-white rounded-full hover:bg-orange-700 transition-colors shadow-[0_0_15px_rgba(249,115,22,0.2)]">
             {isAddingService ? <X size={16} /> : <Plus size={16} />}
           </button>
         </div>
 
         {isAddingService && (
-          <div className="flex flex-col sm:flex-row gap-3 mb-8 bg-zinc-900/40 p-4 rounded-2xl border border-orange-500/20">
-            <input placeholder="Nome" value={newServiceName} onChange={(e) => setNewServiceName(e.target.value)} className="bg-black border border-white/10 p-3 rounded-xl text-xs outline-none focus:border-orange-500 flex-1 uppercase" />
-            <input placeholder="Preço" type="text" value={newServicePrice} onChange={(e) => setNewServicePrice(e.target.value)} className="bg-black border border-white/10 p-3 rounded-xl text-xs outline-none focus:border-orange-500 sm:w-24" />
+          <div className="flex flex-col sm:flex-row gap-3 mb-8 bg-zinc-900/40 p-4 rounded-2xl border border-orange-600/20">
+            <input placeholder="Nome" value={newServiceName} onChange={(e) => setNewServiceName(e.target.value)} className="bg-black border border-white/10 p-3 rounded-xl text-xs outline-none focus:border-orange-600 flex-1 uppercase text-white" />
+            <input placeholder="Preço" type="text" value={newServicePrice} onChange={(e) => setNewServicePrice(e.target.value)} className="bg-black border border-white/10 p-3 rounded-xl text-xs outline-none focus:border-orange-600 sm:w-24 text-white" />
             
-            <select value={newServiceDuration} onChange={(e) => setNewServiceDuration(e.target.value)} className="bg-black border border-white/10 p-3 rounded-xl text-xs outline-none focus:border-orange-500 sm:w-32 text-zinc-400">
+            <select value={newServiceDuration} onChange={(e) => setNewServiceDuration(e.target.value)} className="bg-black border border-white/10 p-3 rounded-xl text-xs outline-none focus:border-orange-600 sm:w-32 text-zinc-400">
               <option value="20">20 MIN</option>
               <option value="30">30 MIN</option>
               <option value="40">40 MIN</option>
@@ -427,7 +455,7 @@ export default function AdminPage() {
               <option value="90">90 MIN</option>
             </select>
 
-            <button onClick={handleSaveService} className="bg-orange-500 text-black font-black uppercase text-[10px] px-6 py-3 rounded-xl hover:bg-orange-400 transition-all">
+            <button onClick={handleSaveService} className="bg-orange-600 text-white font-black uppercase text-[10px] px-6 py-3 rounded-xl hover:bg-orange-700 transition-all shadow-lg shadow-orange-600/10">
               {editingServiceId ? "Salvar" : "Adicionar"}
             </button>
           </div>
@@ -435,17 +463,17 @@ export default function AdminPage() {
 
         <div className="grid gap-3">
           {Object.values(services).map((svc) => (
-            <div key={svc.id} className="flex justify-between items-center bg-zinc-900/30 p-4 rounded-2xl border border-white/5">
+            <div key={svc.id} className="flex justify-between items-center bg-zinc-900/30 p-4 rounded-2xl border border-white/5 hover:border-orange-600/10 transition-all">
               <div>
                 <p className="text-sm font-black uppercase italic">{svc.name}</p>
                 <div className="flex gap-4">
-                   <p className="text-[10px] font-bold text-orange-500">R$ {Number(svc.price).toFixed(2)}</p>
+                   <p className="text-[10px] font-bold text-orange-600">R$ {Number(svc.price).toFixed(2)}</p>
                    <p className="text-[10px] font-bold text-zinc-500 uppercase flex items-center gap-1"><Clock size={10}/> {svc.duration_minutes} MIN</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <button onClick={() => startEditing(svc)} className="p-2 text-zinc-600 hover:text-orange-500 transition-colors"><Pencil size={16} /></button>
-                <button onClick={() => handleDeleteService(svc.id)} className="p-2 text-zinc-700 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
+                <button onClick={() => startEditing(svc)} className="p-2 text-zinc-600 hover:text-orange-600 transition-colors"><Pencil size={16} /></button>
+                <button onClick={() => handleDeleteService(svc.id)} className="p-2 text-zinc-700 hover:text-orange-600 transition-colors"><Trash2 size={16} /></button>
               </div>
             </div>
           ))}
@@ -461,8 +489,8 @@ export default function AdminPage() {
               const isOcupied = appointments.some((a) => a.time.startsWith(time));
               const block = blockedTimes.find((b) => b.time.startsWith(time));
               if (isOcupied) return <div key={time} className="px-5 py-3 bg-zinc-800/20 rounded-xl border border-white/5 text-zinc-700 text-[10px] font-black italic opacity-40"> {time} OCUPADO </div>;
-              if (block) return <button key={time} onClick={() => handleUnblockTime(block.id)} className="px-5 py-3 bg-red-500/10 border border-red-500/40 rounded-xl text-red-500 text-[10px] font-black flex items-center gap-2 hover:bg-red-500 transition-all"><Lock size={12}/> {time} LIBERAR</button>;
-              return <button key={time} onClick={() => handleBlockTime(time)} className="px-5 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-500 text-[10px] font-black hover:border-orange-500/50 hover:text-white transition-all"> {time} BLOQUEAR </button>;
+              if (block) return <button key={time} onClick={() => handleUnblockTime(block.id)} className="px-5 py-3 bg-orange-600/10 border border-orange-600/40 rounded-xl text-orange-600 text-[10px] font-black flex items-center gap-2 hover:bg-orange-600 hover:text-white transition-all"><Lock size={12}/> {time} LIBERAR</button>;
+              return <button key={time} onClick={() => handleBlockTime(time)} className="px-5 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-500 text-[10px] font-black hover:border-orange-600/50 hover:text-white transition-all"> {time} BLOQUEAR </button>;
             })}
           </div>
         </section>

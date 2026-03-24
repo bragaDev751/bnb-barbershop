@@ -10,7 +10,7 @@ interface Service {
   id: string
   name: string
   price: number
-  duration_minutes: number // Ajustado para o nome da coluna no banco
+  duration_minutes: number
 }
 
 export default function Servicos() {
@@ -25,7 +25,7 @@ export default function Servicos() {
       try {
         const { data, error: supabaseError } = await supabase
           .from("services")
-          .select("id, name, price, duration_minutes") // Buscando a coluna correta
+          .select("id, name, price, duration_minutes")
           .order("name", { ascending: true })
 
         if (supabaseError) throw supabaseError
@@ -48,9 +48,10 @@ export default function Servicos() {
 
   return (
     <div className="relative min-h-screen pb-20 px-6 md:px-10 bg-black">
+      {/* Glow de fundo ajustado para Laranja */}
       <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-orange-500/10 blur-[120px] rounded-full" />
-        <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-orange-500/5 blur-[120px] rounded-full" />
+        <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-orange-600/10 blur-[120px] rounded-full" />
+        <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-orange-600/5 blur-[120px] rounded-full" />
       </div>
 
       <div className="relative z-10 max-w-6xl mx-auto pt-10">
@@ -59,6 +60,7 @@ export default function Servicos() {
         </div>
 
         <div className="mb-12 text-center md:text-left">
+          {/* Badge alterada para tons de laranja */}
           <span className="inline-flex items-center gap-2 text-orange-500 font-black tracking-[0.4em] uppercase text-[9px] bg-orange-500/10 px-5 py-2 rounded-full border border-orange-500/20">
             <Sparkles size={12} /> Seleção de Estilo
           </span>
@@ -72,13 +74,16 @@ export default function Servicos() {
 
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
+            {/* Loader laranja */}
             <Loader2 className="text-orange-500 animate-spin" size={40} />
             <p className="text-zinc-500 font-black uppercase tracking-widest text-[10px]">Carregando catálogo...</p>
           </div>
-        ) : error ? (
-          <div className="text-center py-20 bg-orange-500/5 border border-orange-500/20 rounded-[3rem] backdrop-blur-sm">
+       ) : error ? (
+          <div className="text-center py-20 bg-orange-600/5 border border-orange-600/20 rounded-[3rem] backdrop-blur-sm">
             <AlertCircle className="text-orange-500 mx-auto mb-4" size={32} />
-            <p className="text-white font-black uppercase tracking-widest text-[10px]">Ops! Erro ao carregar serviços.</p>
+            <p className="text-white font-black uppercase tracking-widest text-[10px]">
+              Ops! Erro ao carregar serviços.
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -88,7 +93,7 @@ export default function Servicos() {
                   id={service.id}
                   name={service.name}
                   price={service.price}
-                  duration={service.duration_minutes} // Passando a duração correta para o card
+                  duration={service.duration_minutes}
                 />
               </div>
             ))}

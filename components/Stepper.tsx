@@ -17,9 +17,9 @@ export default function Stepper({ step }: StepperProps) {
                 className={`w-8 h-8 flex items-center justify-center rounded-full text-sm font-black transition-all duration-500
               ${
                  current === step
-                  ? "bg-orange-500 text-black shadow-[0_0_15px_rgba(249,115,22,0.6)] scale-110"
+                  ? "bg-orange-600 text-white shadow-[0_0_15px_rgba(249,115,22,0.6)] scale-110"
                   : current < step
-                  ? "bg-orange-500/20 border border-orange-500/40 text-orange-500"
+                  ? "bg-orange-600/20 border border-orange-600/40 text-orange-500"
                   : "bg-zinc-800 text-zinc-500"
                 }`}
               >
@@ -27,7 +27,7 @@ export default function Stepper({ step }: StepperProps) {
               </div>
 
               <span
-                className={`mt-2 text-xs ${
+                className={`mt-2 text-[10px] font-bold uppercase tracking-tighter ${
                   current <= step ? "text-white" : "text-zinc-500"
                 }`}
               >

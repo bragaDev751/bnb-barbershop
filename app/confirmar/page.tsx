@@ -29,8 +29,8 @@ function ConfirmarForm() {
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState("");
   const [nomeServicoReal, setNomeServicoReal] = useState("Carregando...");
-  const [duracaoReal, setDuracaoReal] = useState(30); // Estado para a duração
-  const [dadosBarbeiro, setDadosBarbeiro] = useState({ name: "Carregando..." });
+  const [duracaoReal, setDuracaoReal] = useState(30); 
+  const [dadosBarbeiro, setDadosBarbeiro] = useState({ name: "Carregando...", phone: "" });
 
   const serviceId = searchParams.get("serviceId") || searchParams.get("service") || "";
   const barberId = searchParams.get("barber") || "";
@@ -50,17 +50,21 @@ function ConfirmarForm() {
 
       try {
         const [resService, resBarber] = await Promise.all([
-          // 1. Agora buscamos também o duration_minutes do serviço
           supabase.from("services").select("name, duration_minutes").eq("id", serviceId).single(),
-          supabase.from("barbers").select("name").eq("id", barberId).single(),
+          supabase.from("barbers").select("name, phone").eq("id", barberId).single(),
         ]);
 
         if (isMounted) {
           if (resService.data) {
             setNomeServicoReal(resService.data.name);
-            setDuracaoReal(resService.data.duration_minutes || 30); // Salva a duração
+            setDuracaoReal(resService.data.duration_minutes || 30);
           }
-          if (resBarber.data) setDadosBarbeiro({ name: resBarber.data.name });
+          if (resBarber.data) {
+            setDadosBarbeiro({ 
+              name: resBarber.data.name, 
+              phone: resBarber.data.phone || "" 
+            });
+          }
 
           if (resService.error || resBarber.error) {
             setErro("Erro ao localizar serviços ou profissionais.");
@@ -96,7 +100,6 @@ function ConfirmarForm() {
     try {
       const telefoneLimpo = telefone.replace(/\D/g, "");
 
-      // 2. Passamos a duração capturada para a função de criação
       await createAppointment({
         nome: nome.trim(),
         telefone: telefoneLimpo,
@@ -104,13 +107,15 @@ function ConfirmarForm() {
         barber: barberId,
         date,
         time,
-        duration: duracaoReal, // <--- Aqui o banco recebe o tempo certo
+        duration: duracaoReal,
       });
 
       const mensagem = `*NOVO AGENDAMENTO* ✂️\n\n*Cliente:* ${nome.trim()}\n*Serviço:* ${nomeServicoReal}\n*Barbeiro:* ${dadosBarbeiro.name}\n*Data:* ${dataFormatada}\n*Horário:* ${time}h`;
 
       localStorage.setItem("zap_msg", mensagem);
-      localStorage.setItem("zap_num", "5588999999999");
+      
+      const numDestino = dadosBarbeiro.phone ? dadosBarbeiro.phone.replace(/\D/g, "") : "5588999999999";
+      localStorage.setItem("zap_num", numDestino);
 
       router.push("/sucesso");
     } catch (err) {
@@ -160,22 +165,22 @@ function ConfirmarForm() {
 
         <div className="space-y-5">
           <div className="relative group">
-            <User className="absolute left-5 top-5 text-zinc-600 group-focus-within:text-orange-500 transition-colors" size={18} />
+            <User className="absolute left-5 top-5 text-zinc-600 group-focus-within:text-orange-600 transition-colors" size={18} />
             <input
               type="text"
               placeholder="SEU NOME"
-              className="w-full bg-black/60 border border-white/10 p-5 pl-14 rounded-2xl outline-none focus:border-orange-500/50 transition-all font-bold placeholder:text-zinc-700 text-sm uppercase text-white"
+              className="w-full bg-black/60 border border-white/10 p-5 pl-14 rounded-2xl outline-none focus:border-orange-600/50 transition-all font-bold placeholder:text-zinc-700 text-sm uppercase text-white"
               value={nome}
               onChange={(e) => setNome(e.target.value)}
             />
           </div>
 
           <div className="relative group">
-            <Phone className="absolute left-5 top-5 text-zinc-600 group-focus-within:text-orange-500 transition-colors" size={18} />
+            <Phone className="absolute left-5 top-5 text-zinc-600 group-focus-within:text-orange-600 transition-colors" size={18} />
             <input
               type="tel"
-              placeholder="(85) 9 9999-9999"
-              className="w-full bg-black/60 border border-white/10 p-5 pl-14 rounded-2xl outline-none focus:border-orange-500/50 transition-all font-bold placeholder:text-zinc-700 text-sm text-white"
+              placeholder="(88) 9 9999-9999"
+              className="w-full bg-black/60 border border-white/10 p-5 pl-14 rounded-2xl outline-none focus:border-orange-600/50 transition-all font-bold placeholder:text-zinc-700 text-sm text-white"
               value={telefone}
               onChange={(e) => setTelefone(formatarTelefone(e.target.value))}
             />
@@ -191,7 +196,7 @@ function ConfirmarForm() {
           <button
             onClick={handleConfirm}
             disabled={loading || nomeServicoReal === "Carregando..."}
-            className="group w-full bg-orange-500 hover:bg-orange-600 text-black font-black py-6 rounded-[2rem] transition-all duration-500 shadow-[0_15px_30px_rgba(249,115,22,0.2)] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-3 mt-4 uppercase italic tracking-widest"
+            className="group w-full bg-orange-600 hover:bg-orange-700 text-white font-black py-6 rounded-[2rem] transition-all duration-500 shadow-[0_15px_30px_rgba(249,115,22,0.25)] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-3 mt-4 uppercase italic tracking-widest"
           >
             {loading ? <Loader2 className="animate-spin" size={20} /> : <CheckCircle2 size={20} className="group-hover:scale-125 transition-transform" />}
             {loading ? "PROCESSANDO..." : "FINALIZAR AGENDAMENTO"}
@@ -208,7 +213,12 @@ function ConfirmarForm() {
 
 export default function ConfirmarPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-black flex flex-col items-center justify-center gap-4"><Loader2 className="text-orange-500 animate-spin" size={40}/><span className="text-zinc-500 font-bold uppercase tracking-widest text-[9px] italic">Sincronizando Resumo...</span></div>}>
+    <Suspense fallback={
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center gap-4">
+        <Loader2 className="text-orange-600 animate-spin" size={40}/>
+        <span className="text-zinc-500 font-bold uppercase tracking-widest text-[9px] italic">Sincronizando Resumo...</span>
+      </div>
+    }>
       <ConfirmarForm />
     </Suspense>
   );

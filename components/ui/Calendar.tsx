@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useEffect, useState, useMemo } from "react" // Adicionado useMemo
+import { useEffect, useState, useMemo } from "react"
 import { supabase } from "@/lib/supabase"
 import { Loader2, AlertCircle } from "lucide-react"
 
@@ -17,7 +17,6 @@ export default function Calendar({ service, barber }: Props) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   
-  // 1. Memoizamos os próximos 30 dias para evitar recálculos desnecessários
   const dias = useMemo(() => {
     const hoje = new Date()
     return Array.from({ length: 30 }).map((_, i) => {
@@ -37,6 +36,7 @@ export default function Calendar({ service, barber }: Props) {
 
       try {
         const [apptsRes, blocksRes] = await Promise.all([
+          // AJUSTADO: Nome da coluna alterado de appointment_date para date
           supabase.from("appointments").select("date").eq("barber_id", barber),
           supabase.from("blocked_times").select("date").eq("barber_id", barber).eq("time", "FOLGA")
         ])
@@ -44,20 +44,18 @@ export default function Calendar({ service, barber }: Props) {
         if (apptsRes.error || blocksRes.error) throw new Error("Erro no Supabase")
 
         if (isMounted) {
-          // Processar Dias Lotados
           if (apptsRes.data) {
             const contagem: Record<string, number> = {}
             apptsRes.data.forEach((item) => {
+              // AJUSTADO: Usando item.date conforme seu banco
               contagem[item.date] = (contagem[item.date] || 0) + 1
             })
-            // Ajuste aqui: 15 é o limite, mas você pode deixar dinâmico depois
             const diasSemVagas = Object.entries(contagem)
               .filter(([_, total]) => total >= 15)
               .map(([dia]) => dia)
             setLotados(diasSemVagas)
           }
 
-          // Processar Folgas
           if (blocksRes.data) {
             setFolgas(blocksRes.data.map(b => b.date))
           }
@@ -75,11 +73,8 @@ export default function Calendar({ service, barber }: Props) {
   }, [barber])
 
   function selecionarData(data: Date) {
-    // 2. Formatação segura para evitar problemas de fuso horário (YYYY-MM-DD)
     const formatada = data.toISOString().split('T')[0]
-
     if (lotados.includes(formatada) || folgas.includes(formatada)) return
-
     router.push(`/horarios?service=${service}&barber=${barber}&date=${formatada}`)
   }
 
@@ -122,12 +117,12 @@ export default function Calendar({ service, barber }: Props) {
               ${desabilitado 
                 ? "bg-zinc-950/30 border-white/5 text-zinc-800 cursor-not-allowed opacity-40" 
                 : isHoje 
-                  ? "bg-orange-600 border-orange-500 text-white shadow-[0_10px_25px_rgba(234,88,12,0.4)] z-10" 
+                  ? "bg-orange-600 border-orange-500 text-white shadow-[0_10px_25px_rgba(249,115,22,0.4)] z-10" 
                   : "bg-zinc-900/40 border-white/5 hover:border-orange-500/50 hover:bg-zinc-800 text-zinc-300"
               }
             `}
           >
-            <span className={`text-[7px] font-black tracking-widest mb-1.5 ${isHoje ? "text-orange-100" : isLotado || isFolga ? "text-red-900/50" : "text-zinc-500"}`}>
+            <span className={`text-[7px] font-black tracking-widest mb-1.5 ${isHoje ? "text-orange-100" : isLotado || isFolga ? "text-zinc-700" : "text-zinc-500"}`}>
               {isFolga ? "FOLGA" : isLotado ? "CHEIO" : diaSemana}
             </span>
             <span className="text-2xl font-black italic tracking-tighter leading-none">
