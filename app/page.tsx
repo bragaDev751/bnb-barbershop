@@ -236,7 +236,7 @@ export default function Home() {
                   <Clock size={12} /> Atendimento
                 </h4>
                 <p className="text-white text-sm font-medium uppercase">
-                  Seg -  09h às 20h Sáb 
+                  Seg - Sáb  09h às 20h 
                   <br />
                   Domingo Fechado
                 </p>
