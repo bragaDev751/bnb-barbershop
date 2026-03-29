@@ -49,8 +49,17 @@ interface BlockedTime {
 }
 
 const HORARIOS_DISPONIVEIS = [
-  "08:00", "09:00", "10:00", "11:00", "13:00", "14:00", 
-  "15:00", "16:00", "17:00", "18:00", "19:00",
+  "09:00", "09:20", "09:40",
+  "10:00", "10:20", "10:40",
+  "11:00", "11:20", "11:40",
+  "13:00", "13:20", "13:40",
+  "14:00", "14:20", "14:40",
+  "15:00", "15:20", "15:40",
+  "16:00", "16:20", "16:40",
+  "17:00", "17:20", "17:40",
+  "18:00", "18:20", "18:40",
+  "19:00", "19:20", "19:40",
+  "20:00"
 ];
 
 export default function AdminPage() {
@@ -492,13 +501,13 @@ export default function AdminPage() {
             </p>
           </div>
           
-          <div className="flex flex-wrap gap-3">
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
             {HORARIOS_DISPONIVEIS.map((time) => {
               const [h, m] = time.split(":").map(Number);
               const timeEmMinutos = h * 60 + m;
 
-              const isOcupied = appointments.some((a) => a.time.startsWith(time));
-              const bloqueioDireto = blockedTimes.find((b) => b.time.startsWith(time));
+              const isOcupied = appointments.some((a) => a.time.slice(0, 5) === time);
+              const bloqueioDireto = blockedTimes.find((b) => b.time.slice(0, 5) === time);
 
               // Lógica de Range Visual para o Admin
               const bMinutos = blockedTimes

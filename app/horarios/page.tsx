@@ -51,6 +51,7 @@ export default async function HorariosPage({ searchParams }: PageProps) {
 
   const slots = await getAvailableSlots(barber, date, duracaoServico)
 
+  // AJUSTE DE FUSO PARA BRASIL
   const formatter = new Intl.DateTimeFormat("pt-BR", {
     timeZone: "America/Fortaleza",
     year: "numeric", month: "2-digit", day: "2-digit",
@@ -76,14 +77,14 @@ export default async function HorariosPage({ searchParams }: PageProps) {
     const slotEmMinutos = horaSlot * 60 + minutoSlot
     let ocupado = false
 
-    // Verificação 1: Horário já passou (Hoje)
+    // 1. Verificar se o horário já passou (Hoje)
     if (date === hojeFormatado) {
       if (horaSlot < horaAtual || (horaSlot === horaAtual && minutoSlot <= minutoAtual)) {
         ocupado = true
       }
     }
 
-    // Verificação 2: Range de Bloqueio (Início ao Fim)
+    // 2. Verificar se está dentro do range de bloqueio (Início ao Fim)
     if (bloqueiosEmMinutos.length >= 2) {
       const inicio = bloqueiosEmMinutos[0]
       const fim = bloqueiosEmMinutos[bloqueiosEmMinutos.length - 1]
@@ -91,6 +92,7 @@ export default async function HorariosPage({ searchParams }: PageProps) {
         ocupado = true
       }
     } else if (bloqueiosEmMinutos.length === 1) {
+      // Bloqueio pontual
       if (slotEmMinutos === bloqueiosEmMinutos[0]) ocupado = true
     }
 
