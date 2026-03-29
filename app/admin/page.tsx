@@ -480,17 +480,57 @@ export default function AdminPage() {
         </div>
       </section>
 
-      {/* BLOQUEIOS DE HORÁRIO */}
+{/* BLOQUEIOS DE HORÁRIO AJUSTADO */}
       {!isFolga && (
         <section className="max-w-4xl mx-auto bg-zinc-900/20 border border-white/5 p-8 rounded-[3rem]">
-          <h2 className="text-xs font-black uppercase tracking-[0.2em] mb-8 text-zinc-500 flex items-center gap-2"><CalendarX size={14} /> Pausas e Almoço</h2>
+          <div className="mb-8">
+            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2">
+              <CalendarX size={14} /> Pausas e Almoço
+            </h2>
+            <p className="text-[9px] text-zinc-600 font-bold uppercase mt-1">
+              DICA: Bloqueie o início e o fim da pausa para fechar o intervalo completo.
+            </p>
+          </div>
+          
           <div className="flex flex-wrap gap-3">
             {HORARIOS_DISPONIVEIS.map((time) => {
+              const [h, m] = time.split(":").map(Number);
+              const timeEmMinutos = h * 60 + m;
+
               const isOcupied = appointments.some((a) => a.time.startsWith(time));
-              const block = blockedTimes.find((b) => b.time.startsWith(time));
+              const bloqueioDireto = blockedTimes.find((b) => b.time.startsWith(time));
+
+              // Lógica de Range Visual para o Admin
+              const bMinutos = blockedTimes
+                .filter(b => b.time !== "FOLGA")
+                .map(b => {
+                  const [bh, bm] = b.time.split(":").map(Number);
+                  return bh * 60 + bm;
+                }).sort((a, b) => a - b);
+              
+              const estaNoRange = bMinutos.length >= 2 && 
+                                 timeEmMinutos > bMinutos[0] && 
+                                 timeEmMinutos < bMinutos[bMinutos.length - 1];
+
               if (isOcupied) return <div key={time} className="px-5 py-3 bg-zinc-800/20 rounded-xl border border-white/5 text-zinc-700 text-[10px] font-black italic opacity-40"> {time} OCUPADO </div>;
-              if (block) return <button key={time} onClick={() => handleUnblockTime(block.id)} className="px-5 py-3 bg-orange-600/10 border border-orange-600/40 rounded-xl text-orange-600 text-[10px] font-black flex items-center gap-2 hover:bg-orange-600 hover:text-white transition-all"><Lock size={12}/> {time} LIBERAR</button>;
-              return <button key={time} onClick={() => handleBlockTime(time)} className="px-5 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-500 text-[10px] font-black hover:border-orange-600/50 hover:text-white transition-all"> {time} BLOQUEAR </button>;
+              
+              if (bloqueioDireto) return (
+                <button key={time} onClick={() => handleUnblockTime(bloqueioDireto.id)} className="px-5 py-3 bg-orange-600 text-white rounded-xl text-[10px] font-black flex items-center gap-2 shadow-lg shadow-orange-600/20 transition-all">
+                  <Lock size={12}/> {time} LIBERAR
+                </button>
+              );
+
+              if (estaNoRange) return (
+                <button key={time} onClick={() => handleBlockTime(time)} className="px-5 py-3 bg-orange-600/10 border border-orange-600/20 rounded-xl text-orange-600/50 text-[10px] font-black italic hover:bg-orange-600 hover:text-white transition-all">
+                  {time} NO INTERVALO
+                </button>
+              );
+
+              return (
+                <button key={time} onClick={() => handleBlockTime(time)} className="px-5 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-500 text-[10px] font-black hover:border-orange-600/50 hover:text-white transition-all">
+                  {time} BLOQUEAR
+                </button>
+              );
             })}
           </div>
         </section>

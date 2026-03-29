@@ -62,24 +62,45 @@ export default async function HorariosPage({ searchParams }: PageProps) {
   const horaAtual = Number(getPart("hour"))
   const minutoAtual = Number(getPart("minute"))
 
-  // Criamos os objetos de horário e já verificamos se estão ocupados
+  // LÓGICA DE INTERVALO: Converte bloqueios do banco para minutos totais
+  const bloqueiosEmMinutos = bloqueios
+    .filter(b => b.time !== "FOLGA")
+    .map(b => {
+      const [h, m] = b.time.split(":").map(Number)
+      return h * 60 + m
+    })
+    .sort((a, b) => a - b)
+
   const todosHorarios = slots.map((slot) => {
     const [horaSlot, minutoSlot] = slot.split(":").map(Number)
+    const slotEmMinutos = horaSlot * 60 + minutoSlot
     let ocupado = false
 
+    // Verificação 1: Horário já passou (Hoje)
     if (date === hojeFormatado) {
       if (horaSlot < horaAtual || (horaSlot === horaAtual && minutoSlot <= minutoAtual)) {
         ocupado = true
       }
     }
+
+    // Verificação 2: Range de Bloqueio (Início ao Fim)
+    if (bloqueiosEmMinutos.length >= 2) {
+      const inicio = bloqueiosEmMinutos[0]
+      const fim = bloqueiosEmMinutos[bloqueiosEmMinutos.length - 1]
+      if (slotEmMinutos >= inicio && slotEmMinutos <= fim) {
+        ocupado = true
+      }
+    } else if (bloqueiosEmMinutos.length === 1) {
+      if (slotEmMinutos === bloqueiosEmMinutos[0]) ocupado = true
+    }
+
     return { hora: slot, ocupado }
   })
 
-  // LOGICA DE ORDENAÇÃO: Coloca os disponíveis (ocupado: false) no topo
   const horariosOrdenados = [...todosHorarios].sort((a, b) => {
-    if (a.ocupado === b.ocupado) return 0; // Se ambos forem iguais, mantém a ordem da hora
-    return a.ocupado ? 1 : -1; // Se 'a' estiver ocupado, ele vai para o fim (1)
-  });
+    if (a.ocupado === b.ocupado) return 0
+    return a.ocupado ? 1 : -1
+  })
 
   return (
     <main className="max-w-2xl mx-auto pb-20 px-6 bg-black pt-10">
@@ -100,13 +121,11 @@ export default async function HorariosPage({ searchParams }: PageProps) {
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {horariosOrdenados.map(({ hora, ocupado }) => 
           ocupado ? (
-            // ESTILO PARA HORÁRIO PASSADO: Legível mas riscado
             <div key={hora} className="bg-zinc-900/10 border border-white/5 p-6 rounded-3xl text-center flex flex-col items-center justify-center grayscale">
               <span className="text-xl font-black text-zinc-600 italic line-through decoration-zinc-800">{hora}</span>
               <div className="text-[7px] uppercase font-black text-zinc-800 mt-1 tracking-widest">Indisponível</div>
             </div>
           ) : (
-            // ESTILO PARA HORÁRIO LIVRE
             <Link 
               key={hora} 
               href={`/confirmar?barber=${barber}&date=${date}&time=${hora}&serviceId=${service}`} 
