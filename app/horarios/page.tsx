@@ -20,8 +20,13 @@ export default async function HorariosPage({ searchParams }: PageProps) {
   if (!service || !barber || !date) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center text-center p-6 bg-black">
-        <h2 className="text-white font-black uppercase italic text-2xl mb-4">Dados Incompletos</h2>
-        <Link href="/servico" className="text-orange-500 font-black uppercase text-[10px] border border-orange-500/20 px-6 py-3 rounded-full hover:bg-orange-500/5 transition-colors">
+        <h2 className="text-white font-black uppercase italic text-2xl mb-4">
+          Dados Incompletos
+        </h2>
+        <Link
+          href="/servico"
+          className="text-orange-500 font-black uppercase text-[10px] border border-orange-500/20 px-6 py-3 rounded-full hover:bg-orange-500/5 transition-colors"
+        >
           Recomeçar Agendamento
         </Link>
       </div>
@@ -29,8 +34,16 @@ export default async function HorariosPage({ searchParams }: PageProps) {
   }
 
   const [serviceRes, bloqueiosRes] = await Promise.all([
-    supabase.from("services").select("duration_minutes").eq("id", service).single(),
-    supabase.from("blocked_times").select("time").eq("date", date).eq("barber_id", barber)
+    supabase
+      .from("services")
+      .select("duration_minutes")
+      .eq("id", service)
+      .single(),
+    supabase
+      .from("blocked_times")
+      .select("time")
+      .eq("date", date)
+      .eq("barber_id", barber)
   ])
 
   const duracaoServico = serviceRes.data?.duration_minutes || 30
@@ -41,8 +54,13 @@ export default async function HorariosPage({ searchParams }: PageProps) {
     return (
       <div className="min-h-[80vh] flex flex-col items-center justify-center text-center px-6 bg-black">
         <Coffee className="text-orange-600 mb-6" size={40} />
-        <h2 className="text-white font-black uppercase italic text-3xl mb-4">Agenda Fechada</h2>
-        <Link href="/data" className="bg-orange-600 text-white uppercase font-black text-[10px] px-10 py-4 rounded-full shadow-[0_0_20px_rgba(249,115,22,0.4)] hover:scale-105 transition-transform">
+        <h2 className="text-white font-black uppercase italic text-3xl mb-4">
+          Agenda Fechada
+        </h2>
+        <Link
+          href="/data"
+          className="bg-orange-600 text-white uppercase font-black text-[10px] px-10 py-4 rounded-full shadow-[0_0_20px_rgba(249,115,22,0.4)] hover:scale-105 transition-transform"
+        >
           Escolher outro dia
         </Link>
       </div>
@@ -54,46 +72,44 @@ export default async function HorariosPage({ searchParams }: PageProps) {
   // AJUSTE DE FUSO PARA BRASIL
   const formatter = new Intl.DateTimeFormat("pt-BR", {
     timeZone: "America/Fortaleza",
-    year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit", hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
   })
+
   const parts = formatter.formatToParts(new Date())
-  const getPart = (type: string) => parts.find(p => p.type === type)?.value
+  const getPart = (type: string) =>
+    parts.find(p => p.type === type)?.value
+
   const hojeFormatado = `${getPart("year")}-${getPart("month")}-${getPart("day")}`
   const horaAtual = Number(getPart("hour"))
   const minutoAtual = Number(getPart("minute"))
 
-  // LÓGICA DE INTERVALO: Converte bloqueios do banco para minutos totais
-  const bloqueiosEmMinutos = bloqueios
-    .filter(b => b.time !== "FOLGA")
-    .map(b => {
-      const [h, m] = b.time.split(":").map(Number)
-      return h * 60 + m
-    })
-    .sort((a, b) => a - b)
-
+  // ✅ NOVA LÓGICA SIMPLES (SEM RANGE)
   const todosHorarios = slots.map((slot) => {
     const [horaSlot, minutoSlot] = slot.split(":").map(Number)
-    const slotEmMinutos = horaSlot * 60 + minutoSlot
     let ocupado = false
 
-    // 1. Verificar se o horário já passou (Hoje)
+    // 1. Horário já passou (se for hoje)
     if (date === hojeFormatado) {
-      if (horaSlot < horaAtual || (horaSlot === horaAtual && minutoSlot <= minutoAtual)) {
+      if (
+        horaSlot < horaAtual ||
+        (horaSlot === horaAtual && minutoSlot <= minutoAtual)
+      ) {
         ocupado = true
       }
     }
 
-    // 2. Verificar se está dentro do range de bloqueio (Início ao Fim)
-    if (bloqueiosEmMinutos.length >= 2) {
-      const inicio = bloqueiosEmMinutos[0]
-      const fim = bloqueiosEmMinutos[bloqueiosEmMinutos.length - 1]
-      if (slotEmMinutos >= inicio && slotEmMinutos <= fim) {
-        ocupado = true
-      }
-    } else if (bloqueiosEmMinutos.length === 1) {
-      // Bloqueio pontual
-      if (slotEmMinutos === bloqueiosEmMinutos[0]) ocupado = true
+    // 2. Bloqueio manual EXATO
+    const isManualBlock = bloqueios.some(
+      b => b.time.slice(0, 5) === slot
+    )
+
+    if (isManualBlock) {
+      ocupado = true
     }
 
     return { hora: slot, ocupado }
@@ -107,34 +123,50 @@ export default async function HorariosPage({ searchParams }: PageProps) {
   return (
     <main className="max-w-2xl mx-auto pb-20 px-6 bg-black pt-10">
       <Stepper step={4} />
-      
+
       <header className="mb-12 text-center mt-12 relative">
-        <Link href={`/data?service=${service}&barber=${barber}`} className="absolute left-0 top-1 text-zinc-600 hover:text-orange-500 transition-colors">
+        <Link
+          href={`/data?service=${service}&barber=${barber}`}
+          className="absolute left-0 top-1 text-zinc-600 hover:text-orange-500 transition-colors"
+        >
           <ChevronLeft size={24} />
         </Link>
+
         <h1 className="text-5xl font-black text-white mt-6 uppercase italic tracking-tighter leading-none">
           Horários <span className="text-orange-600">Disponíveis</span>
         </h1>
+
         <p className="text-zinc-500 font-bold uppercase text-[10px] tracking-[0.3em] mt-4">
           {date.split("-").reverse().join("/")} • {duracaoServico}min
         </p>
       </header>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {horariosOrdenados.map(({ hora, ocupado }) => 
+        {horariosOrdenados.map(({ hora, ocupado }) =>
           ocupado ? (
-            <div key={hora} className="bg-zinc-900/10 border border-white/5 p-6 rounded-3xl text-center flex flex-col items-center justify-center grayscale">
-              <span className="text-xl font-black text-zinc-600 italic line-through decoration-zinc-800">{hora}</span>
-              <div className="text-[7px] uppercase font-black text-zinc-800 mt-1 tracking-widest">Indisponível</div>
+            <div
+              key={hora}
+              className="bg-zinc-900/10 border border-white/5 p-6 rounded-3xl text-center flex flex-col items-center justify-center grayscale"
+            >
+              <span className="text-xl font-black text-zinc-600 italic line-through">
+                {hora}
+              </span>
+              <div className="text-[7px] uppercase font-black text-zinc-800 mt-1 tracking-widest">
+                Indisponível
+              </div>
             </div>
           ) : (
-            <Link 
-              key={hora} 
-              href={`/confirmar?barber=${barber}&date=${date}&time=${hora}&serviceId=${service}`} 
+            <Link
+              key={hora}
+              href={`/confirmar?barber=${barber}&date=${date}&time=${hora}&serviceId=${service}`}
               className="group bg-zinc-900/40 border border-white/10 p-6 rounded-3xl text-center hover:border-orange-600/50 hover:bg-orange-600/10 transition-all duration-300 shadow-xl"
             >
-              <span className="text-2xl font-black text-white italic group-hover:text-orange-500 transition-colors">{hora}</span>
-              <div className="text-[7px] uppercase font-black text-orange-500 mt-1 tracking-widest group-hover:drop-shadow-[0_0_8px_rgba(249,115,22,0.6)]">Selecionar</div>
+              <span className="text-2xl font-black text-white italic group-hover:text-orange-500 transition-colors">
+                {hora}
+              </span>
+              <div className="text-[7px] uppercase font-black text-orange-500 mt-1 tracking-widest">
+                Selecionar
+              </div>
             </Link>
           )
         )}
@@ -143,7 +175,9 @@ export default async function HorariosPage({ searchParams }: PageProps) {
       {horariosOrdenados.length === 0 && (
         <div className="text-center py-20 bg-zinc-900/20 rounded-[3rem] border border-dashed border-white/5">
           <Clock className="text-zinc-800 mb-4 mx-auto" size={40} />
-          <p className="text-zinc-600 font-black uppercase tracking-[0.2em] text-[10px]">Sem vagas para esta data</p>
+          <p className="text-zinc-600 font-black uppercase tracking-[0.2em] text-[10px]">
+            Sem vagas para esta data
+          </p>
         </div>
       )}
     </main>

@@ -490,61 +490,55 @@ export default function AdminPage() {
         </div>
       </section>
 
-{/* BLOQUEIOS DE HORÁRIO AJUSTADO */}
-      {!isFolga && (
-        <section className="max-w-4xl mx-auto bg-zinc-900/20 border border-white/5 p-8 rounded-[3rem]">
-          <div className="mb-8">
-            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2">
-              <CalendarX size={14} /> Pausas e Almoço
-            </h2>
-            <p className="text-[9px] text-zinc-600 font-bold uppercase mt-1">
-              DICA: Bloqueie o início e o fim da pausa para fechar o intervalo completo.
-            </p>
+{/* BLOQUEIOS DE HORÁRIO SIMPLIFICADO */}
+{!isFolga && (
+  <section className="max-w-4xl mx-auto bg-zinc-900/20 border border-white/5 p-8 rounded-[3rem]">
+    <div className="mb-8">
+      <h2 className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2">
+        <CalendarX size={14} /> Gestão de Agenda
+      </h2>
+      <p className="text-[9px] text-zinc-600 font-bold uppercase mt-1">
+        Clique nos horários abaixo para bloquear ou liberar a agenda manualmente.
+      </p>
+    </div>
+    
+    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+      {HORARIOS_DISPONIVEIS.map((time) => {
+        const isOcupied = appointments.some((a) => a.time.slice(0, 5) === time);
+        const bloqueioDireto = blockedTimes.find((b) => b.time.slice(0, 5) === time && b.time !== "FOLGA");
+
+        // Se houver agendamento de cliente
+        if (isOcupied) return (
+          <div key={time} className="px-5 py-3 bg-zinc-800/20 rounded-xl border border-white/5 text-zinc-700 text-[10px] font-black italic opacity-40 flex items-center justify-center">
+            {time} OCUPADO
           </div>
-          
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
-            {HORARIOS_DISPONIVEIS.map((time) => {
-              const [h, m] = time.split(":").map(Number);
-              const timeEmMinutos = h * 60 + m;
+        );
+        
+        // Se houver bloqueio manual seu
+        if (bloqueioDireto) return (
+          <button 
+            key={time} 
+            onClick={() => handleUnblockTime(bloqueioDireto.id)} 
+            className="px-5 py-3 bg-orange-600 text-white rounded-xl text-[10px] font-black flex items-center justify-center gap-2 shadow-lg shadow-orange-600/20 hover:bg-orange-700 transition-all"
+          >
+            <Lock size={12}/> {time} LIBERAR
+          </button>
+        );
 
-              const isOcupied = appointments.some((a) => a.time.slice(0, 5) === time);
-              const bloqueioDireto = blockedTimes.find((b) => b.time.slice(0, 5) === time);
-
-              // Lógica de Range Visual para o Admin
-              const bMinutos = blockedTimes
-                .filter(b => b.time !== "FOLGA")
-                .map(b => {
-                  const [bh, bm] = b.time.split(":").map(Number);
-                  return bh * 60 + bm;
-                }).sort((a, b) => a - b);
-              
-              const estaNoRange = bMinutos.length >= 2 && 
-                                 timeEmMinutos > bMinutos[0] && 
-                                 timeEmMinutos < bMinutos[bMinutos.length - 1];
-
-              if (isOcupied) return <div key={time} className="px-5 py-3 bg-zinc-800/20 rounded-xl border border-white/5 text-zinc-700 text-[10px] font-black italic opacity-40"> {time} OCUPADO </div>;
-              
-              if (bloqueioDireto) return (
-                <button key={time} onClick={() => handleUnblockTime(bloqueioDireto.id)} className="px-5 py-3 bg-orange-600 text-white rounded-xl text-[10px] font-black flex items-center gap-2 shadow-lg shadow-orange-600/20 transition-all">
-                  <Lock size={12}/> {time} LIBERAR
-                </button>
-              );
-
-              if (estaNoRange) return (
-                <button key={time} onClick={() => handleBlockTime(time)} className="px-5 py-3 bg-orange-600/10 border border-orange-600/20 rounded-xl text-orange-600/50 text-[10px] font-black italic hover:bg-orange-600 hover:text-white transition-all">
-                  {time} NO INTERVALO
-                </button>
-              );
-
-              return (
-                <button key={time} onClick={() => handleBlockTime(time)} className="px-5 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-500 text-[10px] font-black hover:border-orange-600/50 hover:text-white transition-all">
-                  {time} BLOQUEAR
-                </button>
-              );
-            })}
-          </div>
-        </section>
-      )}
+        // Horário livre para bloquear
+        return (
+          <button 
+            key={time} 
+            onClick={() => handleBlockTime(time)} 
+            className="px-5 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-500 text-[10px] font-black hover:border-orange-600/50 hover:text-white transition-all flex items-center justify-center"
+          >
+            {time} BLOQUEAR
+          </button>
+        );
+      })}
+    </div>
+  </section>
+)}
     </main>
   );
 }
