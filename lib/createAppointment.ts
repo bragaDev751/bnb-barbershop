@@ -1,6 +1,9 @@
 import { supabase } from "@/lib/supabase"
 import { PostgrestError } from "@supabase/supabase-js"
 
+// ID ÚNICO DA BARBEARIA BNB
+const BARBER_TENANT_ID = '6d2fb67a-1733-42b0-a35f-595daeaa01d8';
+
 type AppointmentData = {
   nome: string
   telefone: string
@@ -35,7 +38,8 @@ export async function createAppointment(data: AppointmentData) {
       .insert([
         {
           name: data.nome,
-          phone: data.telefone
+          phone: data.telefone,
+          tenant_id: BARBER_TENANT_ID // <-- VINCULA O CLIENTE À BARBEARIA
         }
       ])
       .select("id")
@@ -63,7 +67,8 @@ export async function createAppointment(data: AppointmentData) {
         date: data.date,
         time: data.time,
         duration: data.duration,
-        status: "pendente"
+        status: "pendente",
+        tenant_id: BARBER_TENANT_ID // <-- VINCULA O AGENDAMENTO À BARBEARIA
       }
     ])
 

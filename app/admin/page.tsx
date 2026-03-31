@@ -24,6 +24,9 @@ import {
   Clock,
 } from "lucide-react";
 
+// ID ÚNICO DA BARBEARIA BNB
+const BARBER_TENANT_ID = '6d2fb67a-1733-42b0-a35f-595daeaa01d8';
+
 // Interfaces
 interface Appointment {
   id: string;
@@ -49,24 +52,17 @@ interface BlockedTime {
 }
 
 const HORARIOS_DISPONIVEIS = [
-  "09:00", "09:20", "09:40",
-  "10:00", "10:20", "10:40",
-  "11:00", "11:20", "11:40",
-  "12:00", "12:20", "12:40",
-  "13:00", "13:20", "13:40",
-  "14:00", "14:20", "14:40",
-  "15:00", "15:20", "15:40",
-  "16:00", "16:20", "16:40",
-  "17:00", "17:20", "17:40",
-  "18:00", "18:20", "18:40",
-  "19:00", "19:20", "19:40",
-  "20:00"
+  "09:00", "09:20", "09:40", "10:00", "10:20", "10:40",
+  "11:00", "11:20", "11:40", "12:00", "12:20", "12:40",
+  "13:00", "13:20", "13:40", "14:00", "14:20", "14:40",
+  "15:00", "15:20", "15:40", "16:00", "16:20", "16:40",
+  "17:00", "17:20", "17:40", "18:00", "18:20", "18:40",
+  "19:00", "19:20", "19:40", "20:00"
 ];
 
 export default function AdminPage() {
   const router = useRouter();
 
-  // CORREÇÃO 1: Inicialização da data garantindo o fuso horário local (Brasil)
   const [selectedDate, setSelectedDate] = useState(() => {
     const agora = new Date();
     const offset = agora.getTimezoneOffset() * 60000;
@@ -89,7 +85,6 @@ export default function AdminPage() {
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
   const [faturamentoMensal, setFaturamentoMensal] = useState(0);
 
-  // --- CÁLCULOS DERIVADOS ---
   const totalAgendamentos = appointments.length;
 
   const faturamentoRealizado = appointments
@@ -103,7 +98,6 @@ export default function AdminPage() {
 
   const isFolga = blockedTimes.some((b) => b.time === "FOLGA");
 
-  // --- FUNÇÕES DE AÇÃO ---
   async function handleLogout() {
     try {
       await supabase.auth.signOut();
@@ -124,7 +118,8 @@ export default function AdminPage() {
       const { error } = await supabase
         .from("appointments")
         .update({ status: newStatus })
-        .eq("id", id);
+        .eq("id", id)
+        .eq("tenant_id", BARBER_TENANT_ID); // Segurança extra
       
       if (error) throw error;
 
@@ -140,7 +135,12 @@ export default function AdminPage() {
   async function handleDelete(id: string) {
     if (!confirm("Deseja cancelar este agendamento?")) return;
     try {
-      const { error } = await supabase.from("appointments").delete().eq("id", id);
+      const { error } = await supabase
+        .from("appointments")
+        .delete()
+        .eq("id", id)
+        .eq("tenant_id", BARBER_TENANT_ID); // Segurança extra
+
       if (error) throw error;
 
       setAppointments((prev) => prev.filter((a) => a.id !== id));
@@ -161,10 +161,15 @@ export default function AdminPage() {
         name: newServiceName.toUpperCase(),
         price: parseFloat(newServicePrice.toString().replace(",", ".")),
         duration_minutes: parseInt(newServiceDuration),
+        tenant_id: BARBER_TENANT_ID, // INJETADO AQUI
       };
 
       if (editingServiceId) {
-        const { error } = await supabase.from("services").update(payload).eq("id", editingServiceId);
+        const { error } = await supabase
+            .from("services")
+            .update(payload)
+            .eq("id", editingServiceId)
+            .eq("tenant_id", BARBER_TENANT_ID);
         if (error) throw error;
         setServices((prev) => ({ ...prev, [editingServiceId]: { ...prev[editingServiceId], ...payload } }));
         toast.success("Serviço atualizado!");
@@ -198,7 +203,11 @@ export default function AdminPage() {
   async function handleDeleteService(id: string) {
     if (!confirm("Excluir serviço permanentemente?")) return;
     try {
-      const { error } = await supabase.from("services").delete().eq("id", id);
+      const { error } = await supabase
+        .from("services")
+        .delete()
+        .eq("id", id)
+        .eq("tenant_id", BARBER_TENANT_ID);
       if (error) throw error;
       setServices((prev) => {
         const newServices = { ...prev };
@@ -217,7 +226,11 @@ export default function AdminPage() {
       if (isFolga) {
         const block = blockedTimes.find((b) => b.time === "FOLGA");
         if (block) {
-          const { error } = await supabase.from("blocked_times").delete().eq("id", block.id);
+          const { error } = await supabase
+            .from("blocked_times")
+            .delete()
+            .eq("id", block.id)
+            .eq("tenant_id", BARBER_TENANT_ID);
           if (error) throw error;
           setBlockedTimes((prev) => prev.filter((b) => b.id !== block.id));
           toast.success("Agenda aberta!");
@@ -226,7 +239,12 @@ export default function AdminPage() {
         if (!confirm("Marcar folga hoje?")) return;
         const { data, error } = await supabase
           .from("blocked_times")
-          .insert([{ barber_id: bId, date: selectedDate, time: "FOLGA" }])
+          .insert([{ 
+            barber_id: bId, 
+            date: selectedDate, 
+            time: "FOLGA",
+            tenant_id: BARBER_TENANT_ID // INJETADO AQUI
+          }])
           .select();
         if (error) throw error;
         if (data) {
@@ -244,7 +262,12 @@ export default function AdminPage() {
     try {
       const { data, error } = await supabase
         .from("blocked_times")
-        .insert([{ barber_id: bId, date: selectedDate, time: time }])
+        .insert([{ 
+            barber_id: bId, 
+            date: selectedDate, 
+            time: time,
+            tenant_id: BARBER_TENANT_ID // INJETADO AQUI
+        }])
         .select();
       if (error) throw error;
       if (data) {
@@ -258,7 +281,11 @@ export default function AdminPage() {
 
   async function handleUnblockTime(id: string) {
     try {
-      const { error } = await supabase.from("blocked_times").delete().eq("id", id);
+      const { error } = await supabase
+        .from("blocked_times")
+        .delete()
+        .eq("id", id)
+        .eq("tenant_id", BARBER_TENANT_ID);
       if (error) throw error;
       setBlockedTimes((prev) => prev.filter((b) => b.id !== id));
       toast.success("Horário liberado.");
@@ -290,24 +317,32 @@ export default function AdminPage() {
           setBarberPhone(barberData.phone);
         }
 
-        const { data: svcs } = await supabase.from("services").select("*");
+        // CARREGA APENAS SERVIÇOS DESTA BARBEARIA
+        const { data: svcs } = await supabase
+            .from("services")
+            .select("*")
+            .eq("tenant_id", BARBER_TENANT_ID);
         if (svcs) {
           const servicesMap = svcs.reduce((acc, s) => ({ ...acc, [s.id]: s }), {});
           setServices(servicesMap);
         }
 
+        // CARREGA APENAS AGENDAMENTOS DESTA BARBEARIA
         const { data: appts } = await supabase
           .from("appointments")
           .select(`id, time, date, barber_id, service_id, status, clients(name, phone)`)
           .eq("date", selectedDate)
           .eq("barber_id", bId)
+          .eq("tenant_id", BARBER_TENANT_ID) // FILTRO GLOBAL
           .order("time", { ascending: true });
 
+        // CARREGA APENAS BLOQUEIOS DESTA BARBEARIA
         const { data: blocks } = await supabase
           .from("blocked_times")
           .select(`id, time, date`)
           .eq("date", selectedDate)
-          .eq("barber_id", bId);
+          .eq("barber_id", bId)
+          .eq("tenant_id", BARBER_TENANT_ID); // FILTRO GLOBAL
 
         if (appts) setAppointments(appts as unknown as Appointment[]);
         if (blocks) setBlockedTimes(blocks);
@@ -326,7 +361,6 @@ export default function AdminPage() {
         const bId = getCookie("barberId");
         if (!bId || Object.keys(services).length === 0) return;
 
-        // CORREÇÃO 2: Cálculo do faturamento mensal garantindo datas locais absolutas
         const agora = new Date();
         const ano = agora.getFullYear();
         const mes = agora.getMonth() + 1;
@@ -340,6 +374,7 @@ export default function AdminPage() {
           .select("service_id")
           .eq("barber_id", bId)
           .eq("status", "concluido")
+          .eq("tenant_id", BARBER_TENANT_ID) // FILTRO GLOBAL
           .gte("date", primeiroDia)
           .lte("date", ultimoDia);
 
@@ -361,20 +396,18 @@ export default function AdminPage() {
   return (
     <main className="min-h-screen bg-[#050505] text-white p-4 md:p-10 pb-32">
       <Toaster position="top-center" theme="dark" richColors closeButton />
-
+      {/* ... O RESTANTE DO JSX É IGUAL ... */}
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4 border-b border-white/5 pb-8">
         <div>
           <h1 className="text-3xl font-black italic tracking-tighter uppercase">Admin <span className="text-orange-600">Dashboard</span></h1>
           <p className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.3em]">Gestão de Horários • {barberName || "Barbeiro"}</p>
         </div>
         <div className="flex items-center gap-3 w-full md:w-auto">
-          {/* O input type="date" já conversa perfeitamente com a string YYYY-MM-DD local */}
           <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="bg-zinc-900/50 p-3 rounded-xl border border-white/5 text-sm font-bold flex-1 outline-none focus:border-orange-600/50 transition-all" />
           <button onClick={handleLogout} className="p-3 bg-zinc-900 border border-white/5 rounded-xl text-zinc-500 hover:text-orange-600 transition-colors"><LogOut size={20} /></button>
         </div>
       </header>
 
-      {/* CARDS DE RESUMO */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12 text-center md:text-left">
         <div className="bg-zinc-900/40 border border-white/5 p-6 rounded-[2rem] relative overflow-hidden">
           <Users className="absolute -right-4 -bottom-4 text-white/5 size-20" />
@@ -398,7 +431,6 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {/* FILA DE ATENDIMENTO */}
       <section className="max-w-4xl mx-auto mb-16">
         <div className="flex justify-between items-center mb-8">
           <h2 className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2"><Scissors size={14} /> Fila de Atendimento</h2>
@@ -442,7 +474,6 @@ export default function AdminPage() {
         </div>
       </section>
 
-      {/* GESTÃO DE SERVIÇOS */}
       <section className="max-w-4xl mx-auto mb-16 bg-zinc-900/10 border border-white/5 p-8 rounded-[3rem]">
         <div className="flex justify-between items-center mb-8">
           <h2 className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2"><Plus size={14} /> Serviços & Duração</h2>
@@ -490,55 +521,51 @@ export default function AdminPage() {
         </div>
       </section>
 
-{/* BLOQUEIOS DE HORÁRIO SIMPLIFICADO */}
-{!isFolga && (
-  <section className="max-w-4xl mx-auto bg-zinc-900/20 border border-white/5 p-8 rounded-[3rem]">
-    <div className="mb-8">
-      <h2 className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2">
-        <CalendarX size={14} /> Gestão de Agenda
-      </h2>
-      <p className="text-[9px] text-zinc-600 font-bold uppercase mt-1">
-        Clique nos horários abaixo para bloquear ou liberar a agenda manualmente.
-      </p>
-    </div>
-    
-    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
-      {HORARIOS_DISPONIVEIS.map((time) => {
-        const isOcupied = appointments.some((a) => a.time.slice(0, 5) === time);
-        const bloqueioDireto = blockedTimes.find((b) => b.time.slice(0, 5) === time && b.time !== "FOLGA");
-
-        // Se houver agendamento de cliente
-        if (isOcupied) return (
-          <div key={time} className="px-5 py-3 bg-zinc-800/20 rounded-xl border border-white/5 text-zinc-700 text-[10px] font-black italic opacity-40 flex items-center justify-center">
-            {time} OCUPADO
+      {!isFolga && (
+        <section className="max-w-4xl mx-auto bg-zinc-900/20 border border-white/5 p-8 rounded-[3rem]">
+          <div className="mb-8">
+            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2">
+              <CalendarX size={14} /> Gestão de Agenda
+            </h2>
+            <p className="text-[9px] text-zinc-600 font-bold uppercase mt-1">
+              Clique nos horários abaixo para bloquear ou liberar a agenda manualmente.
+            </p>
           </div>
-        );
-        
-        // Se houver bloqueio manual seu
-        if (bloqueioDireto) return (
-          <button 
-            key={time} 
-            onClick={() => handleUnblockTime(bloqueioDireto.id)} 
-            className="px-5 py-3 bg-orange-600 text-white rounded-xl text-[10px] font-black flex items-center justify-center gap-2 shadow-lg shadow-orange-600/20 hover:bg-orange-700 transition-all"
-          >
-            <Lock size={12}/> {time} LIBERAR
-          </button>
-        );
+          
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+            {HORARIOS_DISPONIVEIS.map((time) => {
+              const isOcupied = appointments.some((a) => a.time.slice(0, 5) === time);
+              const bloqueioDireto = blockedTimes.find((b) => b.time.slice(0, 5) === time && b.time !== "FOLGA");
 
-        // Horário livre para bloquear
-        return (
-          <button 
-            key={time} 
-            onClick={() => handleBlockTime(time)} 
-            className="px-5 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-500 text-[10px] font-black hover:border-orange-600/50 hover:text-white transition-all flex items-center justify-center"
-          >
-            {time} BLOQUEAR
-          </button>
-        );
-      })}
-    </div>
-  </section>
-)}
+              if (isOcupied) return (
+                <div key={time} className="px-5 py-3 bg-zinc-800/20 rounded-xl border border-white/5 text-zinc-700 text-[10px] font-black italic opacity-40 flex items-center justify-center">
+                  {time} OCUPADO
+                </div>
+              );
+              
+              if (bloqueioDireto) return (
+                <button 
+                  key={time} 
+                  onClick={() => handleUnblockTime(bloqueioDireto.id)} 
+                  className="px-5 py-3 bg-orange-600 text-white rounded-xl text-[10px] font-black flex items-center justify-center gap-2 shadow-lg shadow-orange-600/20 hover:bg-orange-700 transition-all"
+                >
+                  <Lock size={12}/> {time} LIBERAR
+                </button>
+              );
+
+              return (
+                <button 
+                  key={time} 
+                  onClick={() => handleBlockTime(time)} 
+                  className="px-5 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-500 text-[10px] font-black hover:border-orange-600/50 hover:text-white transition-all flex items-center justify-center"
+                >
+                  {time} BLOQUEAR
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
     </main>
   );
 }

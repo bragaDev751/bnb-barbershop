@@ -5,7 +5,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import { Scissors, MapPin, Clock, Smartphone } from "lucide-react";
-
+// 1. ADICIONE O ID ÚNICO DA BARBEARIA BNB
+const BARBER_TENANT_ID = '6d2fb67a-1733-42b0-a35f-595daeaa01d8';
 // Interface para os serviços vindo do banco
 interface Service {
   id: string;
@@ -27,6 +28,7 @@ export default function Home() {
         const { data, error: supabaseError } = await supabase
           .from("services")
           .select("*")
+          .eq("tenant_id", BARBER_TENANT_ID) // <--- 2. FILTRO ADICIONADO AQUI
           .order("price", { ascending: true });
 
         if (supabaseError) throw supabaseError;

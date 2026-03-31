@@ -14,6 +14,9 @@ import {
   ChevronLeft,
 } from "lucide-react";
 
+// ID ÚNICO DA BARBEARIA BNB
+const BARBER_TENANT_ID = '6d2fb67a-1733-42b0-a35f-595daeaa01d8';
+
 interface SupabaseError {
   code?: string;
   message?: string;
@@ -49,9 +52,20 @@ function ConfirmarForm() {
       }
 
       try {
+        // ADICIONADO FILTRO TENANT_ID NAS BUSCAS DE RESUMO
         const [resService, resBarber] = await Promise.all([
-          supabase.from("services").select("name, duration_minutes").eq("id", serviceId).single(),
-          supabase.from("barbers").select("name, phone").eq("id", barberId).single(),
+          supabase
+            .from("services")
+            .select("name, duration_minutes")
+            .eq("id", serviceId)
+            .eq("tenant_id", BARBER_TENANT_ID) // <--- SEGURANÇA
+            .single(),
+          supabase
+            .from("barbers")
+            .select("name, phone")
+            .eq("id", barberId)
+            .eq("tenant_id", BARBER_TENANT_ID) // <--- SEGURANÇA
+            .single(),
         ]);
 
         if (isMounted) {
@@ -100,6 +114,8 @@ function ConfirmarForm() {
     try {
       const telefoneLimpo = telefone.replace(/\D/g, "");
 
+      // A função createAppointment que alteramos antes já cuida do tenant_id internamente,
+      // mas é bom garantir que os IDs passados aqui vieram da busca filtrada acima.
       await createAppointment({
         nome: nome.trim(),
         telefone: telefoneLimpo,
@@ -131,6 +147,7 @@ function ConfirmarForm() {
     }
   }
 
+  // ... Restante do JSX permanece igual ...
   return (
     <main className="animate-in fade-in slide-in-from-bottom-6 duration-700 max-w-2xl mx-auto pb-20 px-6 pt-10">
       <Stepper step={5} />

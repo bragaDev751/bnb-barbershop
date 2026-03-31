@@ -2,7 +2,7 @@
 
 import { deleteAppointment } from "@/lib/deleteAppointments"
 import { useRouter } from "next/navigation"
-
+const BARBER_TENANT_ID = '6d2fb67a-1733-42b0-a35f-595daeaa01d8';
 // 1. Definindo a tipagem correta para evitar o erro de 'any'
 interface Appointment {
   id: string

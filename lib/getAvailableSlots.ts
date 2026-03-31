@@ -1,6 +1,6 @@
 import { supabase } from "./supabase"
 import { generateSlots } from "./generateSlots"
-
+const BARBER_TENANT_ID = '6d2fb67a-1733-42b0-a35f-595daeaa01d8';
 const timeToMinutes = (time: string) => {
   const [h, m] = time.split(":").map(Number)
   return h * 60 + m
@@ -19,7 +19,8 @@ export async function getAvailableSlots(
     .from("appointments")
     .select("time, duration") 
     .eq("barber_id", barberId)
-    .eq("date", date);
+    .eq("date", date)
+    .eq("tenant_id", BARBER_TENANT_ID); // <--- ISOLAMENTO MULTI-TENANT
 
   if (error) {
     console.log("❌ ERRO AO BUSCAR SLOTS:", error.message);

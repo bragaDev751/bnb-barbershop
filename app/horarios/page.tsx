@@ -6,6 +6,9 @@ import { Coffee, CalendarX, Clock, ChevronLeft } from "lucide-react"
 
 export const revalidate = 0;
 
+// ID ÚNICO DA BARBEARIA BNB
+const BARBER_TENANT_ID = '6d2fb67a-1733-42b0-a35f-595daeaa01d8';
+
 interface PageProps {
   searchParams: Promise<{
     service?: string
@@ -33,17 +36,20 @@ export default async function HorariosPage({ searchParams }: PageProps) {
     )
   }
 
+  // ADICIONADO FILTRO TENANT_ID NAS CONSULTAS
   const [serviceRes, bloqueiosRes] = await Promise.all([
     supabase
       .from("services")
       .select("duration_minutes")
       .eq("id", service)
+      .eq("tenant_id", BARBER_TENANT_ID) // <--- SEGURANÇA
       .single(),
     supabase
       .from("blocked_times")
       .select("time")
       .eq("date", date)
       .eq("barber_id", barber)
+      .eq("tenant_id", BARBER_TENANT_ID) // <--- SEGURANÇA
   ])
 
   const duracaoServico = serviceRes.data?.duration_minutes || 30
@@ -52,7 +58,7 @@ export default async function HorariosPage({ searchParams }: PageProps) {
 
   if (isDiaDeFolga) {
     return (
-      <div className="min-h-[80vh] flex flex-col items-center justify-center text-center px-6 bg-black">
+      <div className="min-[80vh] flex flex-col items-center justify-center text-center px-6 bg-black">
         <Coffee className="text-orange-600 mb-6" size={40} />
         <h2 className="text-white font-black uppercase italic text-3xl mb-4">
           Agenda Fechada
@@ -67,6 +73,8 @@ export default async function HorariosPage({ searchParams }: PageProps) {
     )
   }
 
+  // IMPORTANTE: Se a função getAvailableSlots fizer consultas ao banco (como na tabela appointments),
+  // você precisará passar o BARBER_TENANT_ID para dentro dela também.
   const slots = await getAvailableSlots(barber, date, duracaoServico)
 
   // AJUSTE DE FUSO PARA BRASIL
@@ -88,12 +96,10 @@ export default async function HorariosPage({ searchParams }: PageProps) {
   const horaAtual = Number(getPart("hour"))
   const minutoAtual = Number(getPart("minute"))
 
-  // ✅ NOVA LÓGICA SIMPLES (SEM RANGE)
   const todosHorarios = slots.map((slot) => {
     const [horaSlot, minutoSlot] = slot.split(":").map(Number)
     let ocupado = false
 
-    // 1. Horário já passou (se for hoje)
     if (date === hojeFormatado) {
       if (
         horaSlot < horaAtual ||
@@ -103,7 +109,6 @@ export default async function HorariosPage({ searchParams }: PageProps) {
       }
     }
 
-    // 2. Bloqueio manual EXATO
     const isManualBlock = bloqueios.some(
       b => b.time.slice(0, 5) === slot
     )

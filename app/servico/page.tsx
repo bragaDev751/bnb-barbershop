@@ -6,6 +6,9 @@ import ServiceCard from "@/components/ServiceCard"
 import Stepper from "@/components/Stepper"
 import { Scissors, Loader2, Sparkles, AlertCircle } from "lucide-react"
 
+// ID ÚNICO DA BARBEARIA BNB
+const BARBER_TENANT_ID = '6d2fb67a-1733-42b0-a35f-595daeaa01d8';
+
 interface Service {
   id: string
   name: string
@@ -26,6 +29,7 @@ export default function Servicos() {
         const { data, error: supabaseError } = await supabase
           .from("services")
           .select("id, name, price, duration_minutes")
+          .eq("tenant_id", BARBER_TENANT_ID) // <--- FILTRO ADICIONADO AQUI
           .order("name", { ascending: true })
 
         if (supabaseError) throw supabaseError
@@ -60,7 +64,6 @@ export default function Servicos() {
         </div>
 
         <div className="mb-12 text-center md:text-left">
-          {/* Badge alterada para tons de laranja */}
           <span className="inline-flex items-center gap-2 text-orange-500 font-black tracking-[0.4em] uppercase text-[9px] bg-orange-500/10 px-5 py-2 rounded-full border border-orange-500/20">
             <Sparkles size={12} /> Seleção de Estilo
           </span>
@@ -74,7 +77,6 @@ export default function Servicos() {
 
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
-            {/* Loader laranja */}
             <Loader2 className="text-orange-500 animate-spin" size={40} />
             <p className="text-zinc-500 font-black uppercase tracking-widest text-[10px]">Carregando catálogo...</p>
           </div>
@@ -84,6 +86,10 @@ export default function Servicos() {
             <p className="text-white font-black uppercase tracking-widest text-[10px]">
               Ops! Erro ao carregar serviços.
             </p>
+          </div>
+        ) : services.length === 0 ? ( // Adicionado caso a lista venha vazia
+          <div className="text-center py-20">
+             <p className="text-zinc-500 font-black uppercase tracking-widest text-[10px]">Nenhum serviço cadastrado para esta unidade.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

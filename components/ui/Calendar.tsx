@@ -5,6 +5,9 @@ import { useEffect, useState, useMemo } from "react"
 import { supabase } from "@/lib/supabase"
 import { Loader2, AlertCircle } from "lucide-react"
 
+// ⚠️ TEMPORÁRIO (depois vamos substituir por auth dinâmica)
+const BARBER_TENANT_ID = "6d2fb67a-1733-42b0-a35f-595daeaa01d8"
+
 type Props = {
   service: string | null
   barber: string | null
@@ -17,7 +20,7 @@ export default function Calendar({ service, barber }: Props) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
 
-  // ✅ CORRIGIDO: evita problema de fuso
+  // ✅ Gera próximos 30 dias sem bug de fuso
   const dias = useMemo(() => {
     const agora = new Date()
     const hoje = new Date(
@@ -38,41 +41,51 @@ export default function Calendar({ service, barber }: Props) {
 
     async function buscarIndisponibilidade() {
       if (!barber) return
+
       setLoading(true)
       setError(false)
 
       try {
         const [apptsRes, blocksRes] = await Promise.all([
-          supabase.from("appointments").select("date").eq("barber_id", barber),
+          // ✅ COM SEGURANÇA MULTI-TENANT
+          supabase
+            .from("appointments")
+            .select("date")
+            .eq("barber_id", barber)
+            .eq("tenant_id", BARBER_TENANT_ID),
+
           supabase
             .from("blocked_times")
             .select("date")
             .eq("barber_id", barber)
-            .eq("time", "FOLGA"),
+            .eq("time", "FOLGA")
+            .eq("tenant_id", BARBER_TENANT_ID),
         ])
 
         if (apptsRes.error || blocksRes.error) {
           throw new Error("Erro no Supabase")
         }
 
-        if (isMounted) {
-          if (apptsRes.data) {
-            const contagem: Record<string, number> = {}
+        if (!isMounted) return
 
-            apptsRes.data.forEach((item) => {
-              contagem[item.date] = (contagem[item.date] || 0) + 1
-            })
+        // 🔥 Processa dias lotados
+        if (apptsRes.data) {
+          const contagem: Record<string, number> = {}
 
-            const diasSemVagas = Object.entries(contagem)
-              .filter(([_, total]) => total >= 15)
-              .map(([dia]) => dia)
+          apptsRes.data.forEach((item) => {
+            contagem[item.date] = (contagem[item.date] || 0) + 1
+          })
 
-            setLotados(diasSemVagas)
-          }
+          const diasSemVagas = Object.entries(contagem)
+            .filter(([_, total]) => total >= 15)
+            .map(([dia]) => dia)
 
-          if (blocksRes.data) {
-            setFolgas(blocksRes.data.map((b) => b.date))
-          }
+          setLotados(diasSemVagas)
+        }
+
+        // 🔥 Processa folgas
+        if (blocksRes.data) {
+          setFolgas(blocksRes.data.map((b) => b.date))
         }
       } catch (err) {
         console.error("Erro na agenda:", err)
@@ -89,7 +102,7 @@ export default function Calendar({ service, barber }: Props) {
     }
   }, [barber])
 
-  // ✅ CORRIGIDO: formatação local (sem UTC)
+  // ✅ Formatação LOCAL (sem bug de UTC)
   function formatarData(data: Date) {
     const ano = data.getFullYear()
     const mes = String(data.getMonth() + 1).padStart(2, "0")
@@ -107,7 +120,8 @@ export default function Calendar({ service, barber }: Props) {
     )
   }
 
-  if (loading)
+  // ⏳ LOADING
+  if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-3">
         <Loader2 className="text-orange-500 animate-spin" size={32} />
@@ -116,8 +130,10 @@ export default function Calendar({ service, barber }: Props) {
         </p>
       </div>
     )
+  }
 
-  if (error)
+  // ❌ ERRO
+  if (error) {
     return (
       <div className="flex flex-col items-center justify-center py-10 gap-3 text-center">
         <AlertCircle className="text-orange-500" size={32} />
@@ -132,7 +148,9 @@ export default function Calendar({ service, barber }: Props) {
         </button>
       </div>
     )
+  }
 
+  // ✅ UI FINAL
   return (
     <div className="grid grid-cols-4 sm:grid-cols-7 gap-3 w-full animate-in fade-in duration-500">
       {dias.map((dia) => {
@@ -143,7 +161,6 @@ export default function Calendar({ service, barber }: Props) {
           .replace(".", "")
           .toUpperCase()
 
-        // ✅ CORRIGIDO: mesma lógica em todo lugar
         const formatada = formatarData(dia)
 
         const isLotado = lotados.includes(formatada)
