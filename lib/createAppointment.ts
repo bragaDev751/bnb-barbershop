@@ -1,8 +1,8 @@
 import { supabase } from "@/lib/supabase"
 import { PostgrestError } from "@supabase/supabase-js"
+import { TENANT_ID } from "@/lib/config"
 
-// ID ÚNICO DA BARBEARIA BNB
-const BARBER_TENANT_ID = '6d2fb67a-1733-42b0-a35f-595daeaa01d8';
+
 
 type AppointmentData = {
   nome: string
@@ -16,7 +16,6 @@ type AppointmentData = {
 
 export async function createAppointment(data: AppointmentData) {
 
-  // 1. Verificar se cliente já existe
   const { data: existingClient, error: findError } = await supabase
     .from("clients")
     .select("id")
@@ -31,7 +30,6 @@ export async function createAppointment(data: AppointmentData) {
 
   let clientId = existingClient?.id
 
-  // 2. Criar cliente se não existir
   if (!clientId) {
     const { data: newClient, error: clientError } = await supabase
       .from("clients")
@@ -39,7 +37,7 @@ export async function createAppointment(data: AppointmentData) {
         {
           name: data.nome,
           phone: data.telefone,
-          tenant_id: BARBER_TENANT_ID // <-- VINCULA O CLIENTE À BARBEARIA
+          tenant_id: TENANT_ID 
         }
       ])
       .select("id")
@@ -56,7 +54,6 @@ export async function createAppointment(data: AppointmentData) {
     }
   }
 
-  // 3. Criar agendamento
   const { error: appointmentError } = await supabase
     .from("appointments")
     .insert([
@@ -68,7 +65,7 @@ export async function createAppointment(data: AppointmentData) {
         time: data.time,
         duration: data.duration,
         status: "pendente",
-        tenant_id: BARBER_TENANT_ID // <-- VINCULA O AGENDAMENTO À BARBEARIA
+        tenant_id: TENANT_ID 
       }
     ])
 

@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Silencia o aviso de CSS no TypeScript (Tailwind v4 + Next.js)
+  typescript: {
+    ignoreBuildErrors: false,
+  },
   images: {
     remotePatterns: [
       {
@@ -23,7 +27,7 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'skaliaxhpoznntnrqfvr.supabase.co', 
+        hostname: 'skaliaxhpoznntnrqfvr.supabase.co',
         port: '',
         pathname: '/storage/v1/object/public/**',
       },

@@ -3,11 +3,11 @@ import Link from "next/link"
 import Stepper from "@/components/Stepper"
 import { supabase } from "@/lib/supabase"
 import { Coffee, CalendarX, Clock, ChevronLeft } from "lucide-react"
+import { TENANT_ID } from "@/lib/config"
+
 
 export const revalidate = 0;
 
-// ID ÚNICO DA BARBEARIA BNB
-const BARBER_TENANT_ID = '6d2fb67a-1733-42b0-a35f-595daeaa01d8';
 
 interface PageProps {
   searchParams: Promise<{
@@ -36,20 +36,19 @@ export default async function HorariosPage({ searchParams }: PageProps) {
     )
   }
 
-  // ADICIONADO FILTRO TENANT_ID NAS CONSULTAS
   const [serviceRes, bloqueiosRes] = await Promise.all([
     supabase
       .from("services")
       .select("duration_minutes")
       .eq("id", service)
-      .eq("tenant_id", BARBER_TENANT_ID) // <--- SEGURANÇA
+      .eq("tenant_id", TENANT_ID)
       .single(),
     supabase
       .from("blocked_times")
       .select("time")
       .eq("date", date)
       .eq("barber_id", barber)
-      .eq("tenant_id", BARBER_TENANT_ID) // <--- SEGURANÇA
+      .eq("tenant_id", TENANT_ID)
   ])
 
   const duracaoServico = serviceRes.data?.duration_minutes || 30
@@ -58,7 +57,7 @@ export default async function HorariosPage({ searchParams }: PageProps) {
 
   if (isDiaDeFolga) {
     return (
-      <div className="min-[80vh] flex flex-col items-center justify-center text-center px-6 bg-black">
+      <div className="min-h-[80vh] flex flex-col items-center justify-center text-center px-6 bg-black">
         <Coffee className="text-orange-600 mb-6" size={40} />
         <h2 className="text-white font-black uppercase italic text-3xl mb-4">
           Agenda Fechada
@@ -73,24 +72,18 @@ export default async function HorariosPage({ searchParams }: PageProps) {
     )
   }
 
-  // IMPORTANTE: Se a função getAvailableSlots fizer consultas ao banco (como na tabela appointments),
-  // você precisará passar o BARBER_TENANT_ID para dentro dela também.
+  // ✅ getAvailableSlots agora gera até 21:00 — certifique-se que a função também foi atualizada
   const slots = await getAvailableSlots(barber, date, duracaoServico)
 
-  // AJUSTE DE FUSO PARA BRASIL
+  // Ajuste de fuso para Brasil
   const formatter = new Intl.DateTimeFormat("pt-BR", {
     timeZone: "America/Fortaleza",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hour12: false,
   })
 
   const parts = formatter.formatToParts(new Date())
-  const getPart = (type: string) =>
-    parts.find(p => p.type === type)?.value
+  const getPart = (type: string) => parts.find(p => p.type === type)?.value
 
   const hojeFormatado = `${getPart("year")}-${getPart("month")}-${getPart("day")}`
   const horaAtual = Number(getPart("hour"))
@@ -101,21 +94,13 @@ export default async function HorariosPage({ searchParams }: PageProps) {
     let ocupado = false
 
     if (date === hojeFormatado) {
-      if (
-        horaSlot < horaAtual ||
-        (horaSlot === horaAtual && minutoSlot <= minutoAtual)
-      ) {
+      if (horaSlot < horaAtual || (horaSlot === horaAtual && minutoSlot <= minutoAtual)) {
         ocupado = true
       }
     }
 
-    const isManualBlock = bloqueios.some(
-      b => b.time.slice(0, 5) === slot
-    )
-
-    if (isManualBlock) {
-      ocupado = true
-    }
+    const isManualBlock = bloqueios.some(b => b.time.slice(0, 5) === slot)
+    if (isManualBlock) ocupado = true
 
     return { hora: slot, ocupado }
   })
@@ -124,6 +109,8 @@ export default async function HorariosPage({ searchParams }: PageProps) {
     if (a.ocupado === b.ocupado) return 0
     return a.ocupado ? 1 : -1
   })
+
+  const disponiveis = horariosOrdenados.filter(h => !h.ocupado).length
 
   return (
     <main className="max-w-2xl mx-auto pb-20 px-6 bg-black pt-10">
@@ -142,7 +129,7 @@ export default async function HorariosPage({ searchParams }: PageProps) {
         </h1>
 
         <p className="text-zinc-500 font-bold uppercase text-[10px] tracking-[0.3em] mt-4">
-          {date.split("-").reverse().join("/")} • {duracaoServico}min
+          {date.split("-").reverse().join("/")} • {duracaoServico}min • {disponiveis} vagas livres
         </p>
       </header>
 
@@ -153,9 +140,7 @@ export default async function HorariosPage({ searchParams }: PageProps) {
               key={hora}
               className="bg-zinc-900/10 border border-white/5 p-6 rounded-3xl text-center flex flex-col items-center justify-center grayscale"
             >
-              <span className="text-xl font-black text-zinc-600 italic line-through">
-                {hora}
-              </span>
+              <span className="text-xl font-black text-zinc-600 italic line-through">{hora}</span>
               <div className="text-[7px] uppercase font-black text-zinc-800 mt-1 tracking-widest">
                 Indisponível
               </div>

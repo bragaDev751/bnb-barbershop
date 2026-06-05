@@ -4,8 +4,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { Star, ChevronRight, UserX, Sparkles, AlertCircle } from "lucide-react"
 
-// ID ÚNICO DA BARBEARIA BNB
-const BARBER_TENANT_ID = '6d2fb67a-1733-42b0-a35f-595daeaa01d8';
+import { TENANT_ID } from "@/lib/config"
 
 interface PageProps {
   searchParams: Promise<{ service?: string }>
@@ -18,7 +17,7 @@ export default async function Barbeiros({ searchParams }: PageProps) {
   const { data: barbers, error } = await supabase
     .from("barbers")
     .select("*")
-    .eq("tenant_id", BARBER_TENANT_ID) // <--- FILTRO ADICIONADO AQUI
+    .eq("tenant_id", TENANT_ID) // <--- FILTRO ADICIONADO AQUI
     .order('name', { ascending: true })
 
   if (error) {

@@ -5,8 +5,7 @@ import { useEffect, useState, useMemo } from "react"
 import { supabase } from "@/lib/supabase"
 import { Loader2, AlertCircle } from "lucide-react"
 
-// ⚠️ TEMPORÁRIO (depois vamos substituir por auth dinâmica)
-const BARBER_TENANT_ID = "6d2fb67a-1733-42b0-a35f-595daeaa01d8"
+import { TENANT_ID } from "@/lib/config"
 
 type Props = {
   service: string | null
@@ -52,14 +51,14 @@ export default function Calendar({ service, barber }: Props) {
             .from("appointments")
             .select("date")
             .eq("barber_id", barber)
-            .eq("tenant_id", BARBER_TENANT_ID),
+            .eq("tenant_id", TENANT_ID),
 
           supabase
             .from("blocked_times")
             .select("date")
             .eq("barber_id", barber)
             .eq("time", "FOLGA")
-            .eq("tenant_id", BARBER_TENANT_ID),
+            .eq("tenant_id", TENANT_ID),
         ])
 
         if (apptsRes.error || blocksRes.error) {

@@ -13,9 +13,9 @@ import {
   AlertTriangle,
   ChevronLeft,
 } from "lucide-react";
+import { TENANT_ID } from "@/lib/config"
 
-// ID ÚNICO DA BARBEARIA BNB
-const BARBER_TENANT_ID = '6d2fb67a-1733-42b0-a35f-595daeaa01d8';
+
 
 interface SupabaseError {
   code?: string;
@@ -58,13 +58,13 @@ function ConfirmarForm() {
             .from("services")
             .select("name, duration_minutes")
             .eq("id", serviceId)
-            .eq("tenant_id", BARBER_TENANT_ID) // <--- SEGURANÇA
+            .eq("tenant_id", TENANT_ID) // <--- SEGURANÇA
             .single(),
           supabase
             .from("barbers")
             .select("name, phone")
             .eq("id", barberId)
-            .eq("tenant_id", BARBER_TENANT_ID) // <--- SEGURANÇA
+            .eq("tenant_id", TENANT_ID) // <--- SEGURANÇA
             .single(),
         ]);
 
