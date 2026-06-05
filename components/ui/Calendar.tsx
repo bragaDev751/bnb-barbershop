@@ -1,212 +1,75 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useEffect, useState, useMemo } from "react"
-import { supabase } from "@/lib/supabase"
-import { Loader2, AlertCircle } from "lucide-react"
+import { useState } from "react"
 
-import { TENANT_ID } from "@/lib/config"
-
-type Props = {
-  service: string | null
-  barber: string | null
+interface CalendarProps {
+  services: string  // IDs separados por vírgula (ex: "id1,id2")
+  barber: string
 }
 
-export default function Calendar({ service, barber }: Props) {
+export default function Calendar({ services, barber }: CalendarProps) {
   const router = useRouter()
-  const [lotados, setLotados] = useState<string[]>([])
-  const [folgas, setFolgas] = useState<string[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
+  const hoje = new Date()
+  const [mes] = useState(hoje.getMonth())
+  const [ano] = useState(hoje.getFullYear())
 
-  // ✅ Gera próximos 30 dias sem bug de fuso
-  const dias = useMemo(() => {
-    const agora = new Date()
-    const hoje = new Date(
-      agora.getFullYear(),
-      agora.getMonth(),
-      agora.getDate()
-    )
+  const primeiroDia = new Date(ano, mes, 1).getDay()
+  const ultimoDia = new Date(ano, mes + 1, 0).getDate()
+  const diaHoje = hoje.getDate()
 
-    return Array.from({ length: 30 }).map((_, i) => {
-      const data = new Date(hoje)
-      data.setDate(hoje.getDate() + i)
-      return data
-    })
-  }, [])
+  const diasSemana = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
+  const nomeMes = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(new Date(ano, mes))
 
-  useEffect(() => {
-    let isMounted = true
-
-    async function buscarIndisponibilidade() {
-      if (!barber) return
-
-      setLoading(true)
-      setError(false)
-
-      try {
-        const [apptsRes, blocksRes] = await Promise.all([
-          // ✅ COM SEGURANÇA MULTI-TENANT
-          supabase
-            .from("appointments")
-            .select("date")
-            .eq("barber_id", barber)
-            .eq("tenant_id", TENANT_ID),
-
-          supabase
-            .from("blocked_times")
-            .select("date")
-            .eq("barber_id", barber)
-            .eq("time", "FOLGA")
-            .eq("tenant_id", TENANT_ID),
-        ])
-
-        if (apptsRes.error || blocksRes.error) {
-          throw new Error("Erro no Supabase")
-        }
-
-        if (!isMounted) return
-
-        // 🔥 Processa dias lotados
-        if (apptsRes.data) {
-          const contagem: Record<string, number> = {}
-
-          apptsRes.data.forEach((item) => {
-            contagem[item.date] = (contagem[item.date] || 0) + 1
-          })
-
-          const diasSemVagas = Object.entries(contagem)
-            .filter(([_, total]) => total >= 15)
-            .map(([dia]) => dia)
-
-          setLotados(diasSemVagas)
-        }
-
-        // 🔥 Processa folgas
-        if (blocksRes.data) {
-          setFolgas(blocksRes.data.map((b) => b.date))
-        }
-      } catch (err) {
-        console.error("Erro na agenda:", err)
-        if (isMounted) setError(true)
-      } finally {
-        if (isMounted) setLoading(false)
-      }
-    }
-
-    buscarIndisponibilidade()
-
-    return () => {
-      isMounted = false
-    }
-  }, [barber])
-
-  // ✅ Formatação LOCAL (sem bug de UTC)
-  function formatarData(data: Date) {
-    const ano = data.getFullYear()
-    const mes = String(data.getMonth() + 1).padStart(2, "0")
-    const dia = String(data.getDate()).padStart(2, "0")
-    return `${ano}-${mes}-${dia}`
+  function handleSelectDay(dia: number) {
+    if (dia < diaHoje) return
+    const mesStr = String(mes + 1).padStart(2, "0")
+    const diaStr = String(dia).padStart(2, "0")
+    router.push(`/horarios?services=${services}&barber=${barber}&date=${ano}-${mesStr}-${diaStr}`)
   }
 
-  function selecionarData(data: Date) {
-    const formatada = formatarData(data)
+  const cells: (number | null)[] = []
+  for (let i = 0; i < primeiroDia; i++) cells.push(null)
+  for (let d = 1; d <= ultimoDia; d++) cells.push(d)
 
-    if (lotados.includes(formatada) || folgas.includes(formatada)) return
-
-    router.push(
-      `/horarios?service=${service}&barber=${barber}&date=${formatada}`
-    )
-  }
-
-  // ⏳ LOADING
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 gap-3">
-        <Loader2 className="text-orange-500 animate-spin" size={32} />
-        <p className="text-zinc-600 font-black uppercase text-[9px] tracking-[0.4em]">
-          Sincronizando Agenda...
-        </p>
-      </div>
-    )
-  }
-
-  // ❌ ERRO
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center py-10 gap-3 text-center">
-        <AlertCircle className="text-orange-500" size={32} />
-        <p className="text-zinc-500 font-bold uppercase text-[10px]">
-          Não foi possível carregar a disponibilidade.
-        </p>
-        <button
-          onClick={() => window.location.reload()}
-          className="text-orange-500 text-[9px] font-black underline uppercase"
-        >
-          Tentar denovo
-        </button>
-      </div>
-    )
-  }
-
-  // ✅ UI FINAL
   return (
-    <div className="grid grid-cols-4 sm:grid-cols-7 gap-3 w-full animate-in fade-in duration-500">
-      {dias.map((dia) => {
-        const numero = dia.getDate()
-
-        const diaSemana = dia
-          .toLocaleDateString("pt-BR", { weekday: "short" })
-          .replace(".", "")
-          .toUpperCase()
-
-        const formatada = formatarData(dia)
-
-        const isLotado = lotados.includes(formatada)
-        const isFolga = folgas.includes(formatada)
-        const isHoje =
-          dia.toDateString() === new Date().toDateString()
-
-        const desabilitado = isLotado || isFolga
-
-        return (
-          <button
-            key={formatada}
-            onClick={() => selecionarData(dia)}
-            disabled={desabilitado}
-            className={`
-              group relative flex flex-col items-center justify-center p-5 rounded-[2rem] border transition-all duration-300 active:scale-95
-              ${
-                desabilitado
-                  ? "bg-zinc-950/30 border-white/5 text-zinc-800 cursor-not-allowed opacity-40"
-                  : isHoje
-                  ? "bg-orange-600 border-orange-500 text-white shadow-[0_10px_25px_rgba(249,115,22,0.4)] z-10"
-                  : "bg-zinc-900/40 border-white/5 hover:border-orange-500/50 hover:bg-zinc-800 text-zinc-300"
-              }
-            `}
-          >
-            <span
-              className={`text-[7px] font-black tracking-widest mb-1.5 ${
-                isHoje
-                  ? "text-orange-100"
-                  : isLotado || isFolga
-                  ? "text-zinc-700"
-                  : "text-zinc-500"
-              }`}
+    <div className="w-full">
+      <div className="flex items-center justify-center mb-8">
+        <h3 className="text-xl font-black uppercase italic tracking-tight text-white capitalize">{nomeMes}</h3>
+      </div>
+      <div className="grid grid-cols-7 gap-1 mb-3">
+        {diasSemana.map((d) => (
+          <div key={d} className="text-center text-[9px] font-black uppercase tracking-widest text-zinc-600 py-2">{d}</div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-1.5">
+        {cells.map((dia, idx) => {
+          if (dia === null) return <div key={`empty-${idx}`} />
+          const isPast = dia < diaHoje
+          const isToday = dia === diaHoje
+          const isDomingo = new Date(ano, mes, dia).getDay() === 0
+          return (
+            <button
+              key={dia}
+              onClick={() => handleSelectDay(dia)}
+              disabled={isPast || isDomingo}
+              className={`aspect-square rounded-2xl text-sm font-black italic transition-all duration-300 relative flex items-center justify-center
+                ${isPast || isDomingo
+                  ? "text-zinc-800 cursor-not-allowed"
+                  : isToday
+                    ? "bg-orange-600 text-white shadow-[0_0_20px_rgba(249,115,22,0.4)] scale-110 z-10"
+                    : "bg-zinc-900/60 text-zinc-300 hover:bg-orange-600/20 hover:text-white border border-transparent active:scale-95"
+                }`}
             >
-              {isFolga ? "FOLGA" : isLotado ? "CHEIO" : diaSemana}
-            </span>
-
-            <span className="text-2xl font-black italic tracking-tighter leading-none">
-              {numero}
-            </span>
-
-            {!desabilitado && !isHoje && (
-              <div className="absolute bottom-3 w-1 h-1 bg-orange-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
-            )}
-          </button>
-        )
-      })}
+              {dia}
+              {isToday && <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-white rounded-full" />}
+            </button>
+          )
+        })}
+      </div>
+      <p className="text-center text-[8px] text-zinc-700 font-black uppercase tracking-widest mt-8">
+        Agendamentos apenas neste mês • Domingos fechado
+      </p>
     </div>
   )
 }

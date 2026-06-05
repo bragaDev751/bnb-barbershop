@@ -5,22 +5,21 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { createAppointment } from "@/lib/createAppointment";
 import { supabase } from "@/lib/supabase";
 import Stepper from "@/components/Stepper";
+import { TENANT_ID } from "@/lib/config";
 import {
-  User,
-  Phone,
-  CheckCircle2,
-  Loader2,
-  AlertTriangle,
-  ChevronLeft,
+  User, Phone, CheckCircle2, Loader2, AlertTriangle, ChevronLeft, Scissors, Clock
 } from "lucide-react";
-import { TENANT_ID } from "@/lib/config"
-
-
 
 interface SupabaseError {
   code?: string;
   message?: string;
-  details?: string;
+}
+
+interface ServiceData {
+  id: string;
+  name: string;
+  price: number;
+  duration_minutes: number;
 }
 
 function ConfirmarForm() {
@@ -31,76 +30,57 @@ function ConfirmarForm() {
   const [telefone, setTelefone] = useState("");
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState("");
-  const [nomeServicoReal, setNomeServicoReal] = useState("Carregando...");
-  const [duracaoReal, setDuracaoReal] = useState(30); 
+  const [servicos, setServicos] = useState<ServiceData[]>([]);
   const [dadosBarbeiro, setDadosBarbeiro] = useState({ name: "Carregando...", phone: "" });
 
-  const serviceId = searchParams.get("serviceId") || searchParams.get("service") || "";
+  // ✅ Suporta "services" (múltiplos) e "serviceId"/"service" (singular, retrocompatível)
+  const servicesParam = searchParams.get("services") || searchParams.get("serviceId") || searchParams.get("service") || "";
+  const serviceIds = servicesParam.split(",").filter(Boolean);
   const barberId = searchParams.get("barber") || "";
   const date = searchParams.get("date") || "";
   const time = searchParams.get("time") || "";
 
   const dataFormatada = date ? date.split("-").reverse().join("/") : "Data inválida";
+  const totalPreco = servicos.reduce((acc, s) => acc + s.price, 0);
+  const totalDuracao = servicos.reduce((acc, s) => acc + s.duration_minutes, 0);
 
   useEffect(() => {
     let isMounted = true;
-
     async function carregarDados() {
-      if (!serviceId || !barberId) {
+      if (serviceIds.length === 0 || !barberId) {
         setErro("Dados de agendamento incompletos.");
         return;
       }
-
       try {
-        // ADICIONADO FILTRO TENANT_ID NAS BUSCAS DE RESUMO
-        const [resService, resBarber] = await Promise.all([
+        const [svcsRes, barberRes] = await Promise.all([
           supabase
             .from("services")
-            .select("name, duration_minutes")
-            .eq("id", serviceId)
-            .eq("tenant_id", TENANT_ID) // <--- SEGURANÇA
-            .single(),
+            .select("id, name, price, duration_minutes")
+            .in("id", serviceIds)
+            .eq("tenant_id", TENANT_ID),
           supabase
             .from("barbers")
             .select("name, phone")
             .eq("id", barberId)
-            .eq("tenant_id", TENANT_ID) // <--- SEGURANÇA
+            .eq("tenant_id", TENANT_ID)
             .single(),
         ]);
-
         if (isMounted) {
-          if (resService.data) {
-            setNomeServicoReal(resService.data.name);
-            setDuracaoReal(resService.data.duration_minutes || 30);
-          }
-          if (resBarber.data) {
-            setDadosBarbeiro({ 
-              name: resBarber.data.name, 
-              phone: resBarber.data.phone || "" 
-            });
-          }
-
-          if (resService.error || resBarber.error) {
-            setErro("Erro ao localizar serviços ou profissionais.");
-          }
+          if (svcsRes.data) setServicos(svcsRes.data as ServiceData[]);
+          if (barberRes.data) setDadosBarbeiro({ name: barberRes.data.name, phone: barberRes.data.phone || "" });
+          if (svcsRes.error || barberRes.error) setErro("Erro ao localizar serviços ou profissional.");
         }
-      } catch (err) {
-        if (isMounted) {
-          console.error(err);
-          setErro("Erro de conexão com o banco de dados.");
-        }
+      } catch {
+        if (isMounted) setErro("Erro de conexão.");
       }
     }
-
     carregarDados();
     return () => { isMounted = false; };
-  }, [serviceId, barberId]);
+  }, [servicesParam, barberId]);
 
   const formatarTelefone = (value: string) => {
     const v = value.replace(/\D/g, "");
-    if (v.length <= 11) {
-      return v.replace(/^(\d{2})(\d)/g, "($1) $2").replace(/(\d{5})(\d)/, "$1-$2");
-    }
+    if (v.length <= 11) return v.replace(/^(\d{2})(\d)/g, "($1) $2").replace(/(\d{5})(\d)/, "$1-$2");
     return v.slice(0, 11);
   };
 
@@ -114,31 +94,36 @@ function ConfirmarForm() {
     try {
       const telefoneLimpo = telefone.replace(/\D/g, "");
 
-      // A função createAppointment que alteramos antes já cuida do tenant_id internamente,
-      // mas é bom garantir que os IDs passados aqui vieram da busca filtrada acima.
-      await createAppointment({
-        nome: nome.trim(),
-        telefone: telefoneLimpo,
-        service: serviceId,
-        barber: barberId,
-        date,
-        time,
-        duration: duracaoReal,
-      });
+      // Cria um agendamento para cada serviço, com horários sequenciais
+      let currentTime = time;
+      for (const serviceId of serviceIds) {
+        const svc = servicos.find(s => s.id === serviceId);
+        const duracao = svc?.duration_minutes || 30;
 
-      const mensagem = `*NOVO AGENDAMENTO* ✂️\n\n*Cliente:* ${nome.trim()}\n*Serviço:* ${nomeServicoReal}\n*Barbeiro:* ${dadosBarbeiro.name}\n*Data:* ${dataFormatada}\n*Horário:* ${time}h`;
+        await createAppointment({
+          nome: nome.trim(),
+          telefone: telefoneLimpo,
+          service: serviceId,
+          barber: barberId,
+          date,
+          time: currentTime,
+          duration: duracao,
+        });
 
+        // Próximo serviço começa após o término deste
+        const [h, m] = currentTime.split(":").map(Number);
+        const totalMin = h * 60 + m + duracao;
+        currentTime = `${String(Math.floor(totalMin / 60)).padStart(2, "0")}:${String(totalMin % 60).padStart(2, "0")}`;
+      }
+
+      const nomesServicos = servicos.map(s => s.name).join(", ");
+      const mensagem = `*NOVO AGENDAMENTO* ✂️\n\n*Cliente:* ${nome.trim()}\n*Serviços:* ${nomesServicos}\n*Barbeiro:* ${dadosBarbeiro.name}\n*Data:* ${dataFormatada}\n*Horário:* ${time}h\n*Duração total:* ${totalDuracao}min\n*Total:* R$ ${totalPreco.toFixed(0)}`;
       localStorage.setItem("zap_msg", mensagem);
-      
-      const numDestino = dadosBarbeiro.phone ? dadosBarbeiro.phone.replace(/\D/g, "") : "5588999999999";
-      localStorage.setItem("zap_num", numDestino);
-
+      localStorage.setItem("zap_num", dadosBarbeiro.phone?.replace(/\D/g, "") || "5588999999999");
       router.push("/sucesso");
     } catch (err) {
       const error = err as SupabaseError;
-      console.error("Erro técnico:", error);
       setLoading(false);
-
       if (error.code === "23505" || error.message?.includes("unique_barber_slot")) {
         setErro("ESSE HORÁRIO ACABOU DE SER RESERVADO POR OUTRA PESSOA.");
       } else {
@@ -147,7 +132,6 @@ function ConfirmarForm() {
     }
   }
 
-  // ... Restante do JSX permanece igual ...
   return (
     <main className="animate-in fade-in slide-in-from-bottom-6 duration-700 max-w-2xl mx-auto pb-20 px-6 pt-10">
       <Stepper step={5} />
@@ -164,12 +148,41 @@ function ConfirmarForm() {
         </h1>
       </header>
 
-      <div className="bg-zinc-900/40 backdrop-blur-xl border border-white/5 p-8 md:p-12 rounded-[3rem] shadow-2xl relative overflow-hidden">
-        <div className="space-y-4 mb-10 bg-black/40 p-6 rounded-[2.5rem] border border-white/5">
-          <div className="flex justify-between items-center border-b border-white/5 pb-3">
-            <span className="text-zinc-600 text-[8px] font-black uppercase tracking-widest">Procedimento</span>
-            <span className="font-black italic uppercase text-xs text-orange-500">{nomeServicoReal} ({duracaoReal} min)</span>
+      <div className="bg-zinc-900/40 backdrop-blur-xl border border-white/5 p-8 md:p-12 rounded-[3rem] shadow-2xl">
+        {/* RESUMO DO PEDIDO */}
+        <div className="space-y-3 mb-10 bg-black/40 p-6 rounded-[2.5rem] border border-white/5">
+
+          {/* LISTA DE SERVIÇOS */}
+          <div className="border-b border-white/5 pb-4 mb-1">
+            <p className="text-zinc-600 text-[8px] font-black uppercase tracking-widest mb-3">
+              {servicos.length > 1 ? `${servicos.length} Procedimentos` : "Procedimento"}
+            </p>
+            <div className="space-y-2">
+              {servicos.length === 0 ? (
+                <p className="text-zinc-500 text-xs italic">Carregando...</p>
+              ) : servicos.map((s) => (
+                <div key={s.id} className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <Scissors size={10} className="text-orange-500" />
+                    <span className="text-white font-black uppercase italic text-xs">{s.name}</span>
+                    <span className="text-zinc-600 text-[8px] uppercase">{s.duration_minutes}min</span>
+                  </div>
+                  <span className="text-orange-500 font-black text-xs">R$ {Number(s.price).toFixed(0)}</span>
+                </div>
+              ))}
+            </div>
+            {servicos.length > 1 && (
+              <div className="flex justify-between items-center mt-3 pt-3 border-t border-white/5">
+                <span className="text-zinc-500 text-[8px] font-black uppercase flex items-center gap-1">
+                  <Clock size={9} /> {totalDuracao} min no total
+                </span>
+                <span className="text-white font-black text-sm italic">
+                  R$ {totalPreco.toFixed(0)}
+                </span>
+              </div>
+            )}
           </div>
+
           <div className="flex justify-between items-center border-b border-white/5 pb-3">
             <span className="text-zinc-600 text-[8px] font-black uppercase tracking-widest">Especialista</span>
             <span className="font-black italic uppercase text-xs text-white">{dadosBarbeiro.name}</span>
@@ -180,6 +193,7 @@ function ConfirmarForm() {
           </div>
         </div>
 
+        {/* FORMULÁRIO */}
         <div className="space-y-5">
           <div className="relative group">
             <User className="absolute left-5 top-5 text-zinc-600 group-focus-within:text-orange-600 transition-colors" size={18} />
@@ -191,7 +205,6 @@ function ConfirmarForm() {
               onChange={(e) => setNome(e.target.value)}
             />
           </div>
-
           <div className="relative group">
             <Phone className="absolute left-5 top-5 text-zinc-600 group-focus-within:text-orange-600 transition-colors" size={18} />
             <input
@@ -212,7 +225,7 @@ function ConfirmarForm() {
 
           <button
             onClick={handleConfirm}
-            disabled={loading || nomeServicoReal === "Carregando..."}
+            disabled={loading || servicos.length === 0}
             className="group w-full bg-orange-600 hover:bg-orange-700 text-white font-black py-6 rounded-[2rem] transition-all duration-500 shadow-[0_15px_30px_rgba(249,115,22,0.25)] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-3 mt-4 uppercase italic tracking-widest"
           >
             {loading ? <Loader2 className="animate-spin" size={20} /> : <CheckCircle2 size={20} className="group-hover:scale-125 transition-transform" />}
@@ -232,7 +245,7 @@ export default function ConfirmarPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-black flex flex-col items-center justify-center gap-4">
-        <Loader2 className="text-orange-600 animate-spin" size={40}/>
+        <Loader2 className="text-orange-600 animate-spin" size={40} />
         <span className="text-zinc-500 font-bold uppercase tracking-widest text-[9px] italic">Sincronizando Resumo...</span>
       </div>
     }>

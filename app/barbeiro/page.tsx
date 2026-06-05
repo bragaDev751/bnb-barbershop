@@ -3,21 +3,21 @@ import Stepper from "@/components/Stepper"
 import Link from "next/link"
 import Image from "next/image"
 import { Star, ChevronRight, UserX, Sparkles, AlertCircle } from "lucide-react"
-
 import { TENANT_ID } from "@/lib/config"
 
 interface PageProps {
-  searchParams: Promise<{ service?: string }>
+  searchParams: Promise<{ services?: string; service?: string }>
 }
 
 export default async function Barbeiros({ searchParams }: PageProps) {
   const resolvedParams = await searchParams
-  const serviceId = resolvedParams.service
+  // ✅ Suporta "services" (múltiplos) e "service" (singular, retrocompatível)
+  const servicesParam = resolvedParams.services || resolvedParams.service || ""
 
   const { data: barbers, error } = await supabase
     .from("barbers")
     .select("*")
-    .eq("tenant_id", TENANT_ID) // <--- FILTRO ADICIONADO AQUI
+    .eq("tenant_id", TENANT_ID)
     .order('name', { ascending: true })
 
   if (error) {
@@ -32,7 +32,6 @@ export default async function Barbeiros({ searchParams }: PageProps) {
 
   return (
     <div className="relative min-h-screen pb-20 px-6 bg-black">
-      {/* Background Decorativo */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="absolute top-[20%] left-[-10%] w-[400px] h-[400px] bg-orange-600/5 blur-[100px] rounded-full" />
         <div className="absolute bottom-[10%] right-[-5%] w-[300px] h-[300px] bg-orange-600/10 blur-[120px] rounded-full opacity-50" />
@@ -51,9 +50,6 @@ export default async function Barbeiros({ searchParams }: PageProps) {
             Selecione o seu<br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-orange-500 to-orange-700">Barbeiro</span>
           </h1>
-          <p className="text-zinc-500 font-bold mt-6 uppercase tracking-[0.2em] text-[10px] max-w-sm">
-            Escolha o profissional que domina as técnicas para elevar sua identidade.
-          </p>
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -61,15 +57,15 @@ export default async function Barbeiros({ searchParams }: PageProps) {
             barbers.map((barber) => (
               <Link
                 key={barber.id}
-                href={`/data?service=${serviceId}&barber=${barber.id}`}
+                href={`/data?services=${servicesParam}&barber=${barber.id}`}
                 className="group relative flex items-center gap-6 p-6 bg-zinc-900/40 backdrop-blur-2xl border border-white/5 rounded-[2.5rem] hover:border-orange-600/40 hover:bg-zinc-900/60 transition-all duration-500 shadow-2xl active:scale-95"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-orange-600/0 to-orange-600/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-[2.5rem]" />
 
                 <div className="relative z-10">
                   <div className="w-24 h-24 md:w-28 md:h-28 rounded-full overflow-hidden border-2 border-zinc-800 group-hover:border-orange-600 transition-all duration-500 ring-4 ring-transparent group-hover:ring-orange-600/20 relative bg-zinc-800">
-                    <Image 
-                      src={barber.avatar_url || "https://images.unsplash.com/photo-1503467913725-8484b65b0715?q=80&w=200&h=200&auto=format&fit=crop"} 
+                    <Image
+                      src={barber.avatar_url || "https://images.unsplash.com/photo-1503467913725-8484b65b0715?q=80&w=200&h=200&auto=format&fit=crop"}
                       alt={barber.name}
                       fill
                       className="object-cover transition-all duration-700 scale-110 group-hover:scale-100"
@@ -91,9 +87,7 @@ export default async function Barbeiros({ searchParams }: PageProps) {
                         <Star key={i} size={8} className="fill-orange-500 text-orange-500" />
                       ))}
                     </div>
-                    <p className="text-zinc-500 text-[9px] font-bold uppercase tracking-[0.1em]">
-                      Visagismo & Estilo
-                    </p>
+                    <p className="text-zinc-500 text-[9px] font-bold uppercase tracking-[0.1em]">Visagismo & Estilo</p>
                   </div>
                 </div>
 
